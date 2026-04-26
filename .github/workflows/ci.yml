@@ -1,0 +1,594 @@
+name: CortexGrid CI/CD
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "20"
+  PNPM_VERSION: "9.12.0"
+  REGISTRY: ghcr.io
+  IMAGE_PREFIX: ${{ github.repository }}
+
+jobs:
+  # ─── Setup & Cache ──────────────────────────────────────────────────────
+  setup:
+    name: Setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Cache node_modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Cache .turbo
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+  # ─── Lint ───────────────────────────────────────────────────────────────
+  lint:
+    name: Lint
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore pnpm store
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run lint
+        run: pnpm lint
+
+  # ─── Type Check ─────────────────────────────────────────────────────────
+  type-check:
+    name: Type Check
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Run type check
+        run: pnpm type-check
+
+  # ─── Unit Tests ─────────────────────────────────────────────────────────
+  unit-tests:
+    name: Unit Tests
+    needs: setup
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Run unit tests
+        run: pnpm test:unit -- --coverage
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 7
+
+  # ─── Integration Tests ──────────────────────────────────────────────────
+  integration-tests:
+    name: Integration Tests
+    needs: setup
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cortexgrid
+          POSTGRES_PASSWORD: cortexgrid
+          POSTGRES_DB: cortexgrid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+
+      - name: Run integration tests
+        run: pnpm test:integration
+
+  # ─── API Tests (Newman / Postman) ──────────────────────────────────────
+  api-tests:
+    name: API Tests (Newman)
+    needs: integration-tests
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cortexgrid
+          POSTGRES_PASSWORD: cortexgrid
+          POSTGRES_DB: cortexgrid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      PORT: 3001
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: pnpm --filter @cortexgrid/api db:seed
+
+      - name: Start API server
+        run: |
+          cd apps/api && node dist/main.js &
+          echo "Waiting for API server to start..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/api/v1/health > /dev/null 2>&1; then
+              echo "API server is ready"
+              break
+            fi
+            echo "Attempt $i: API not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Run Postman collection
+        run: |
+          newman run docker/postman/cortexgrid.postman_collection.json \
+            -e docker/postman/cortexgrid.postman_environment.json \
+            --reporters cli,htmlextra \
+            --reporter-htmlextra-export newman-report.html \
+            --delay-request 500 \
+            --timeout 30000 \
+            --bail
+
+      - name: Upload Newman report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: newman-report
+          path: newman-report.html
+          retention-days: 7
+
+  # ─── E2E Tests (Playwright) ────────────────────────────────────────────
+  e2e-tests:
+    name: E2E Tests (Playwright)
+    needs: [lint, type-check, unit-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Playwright browsers
+        run: cd apps/web && npx playwright install --with-deps chromium
+
+      - name: Start services via Docker Compose
+        run: |
+          docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up -d \
+            postgres redis mosquitto api web
+          echo "Waiting for services to be healthy..."
+          sleep 30
+
+      - name: Verify services are running
+        run: |
+          curl -sf http://localhost:3001/api/v1/health || (echo "API not reachable" && docker compose logs api && exit 1)
+          curl -sf http://localhost:3000 || (echo "Web not reachable" && docker compose logs web && exit 1)
+
+      - name: Run Playwright tests
+        run: pnpm --filter @cortexgrid/web test:e2e
+        env:
+          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          CI: true
+
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+
+      - name: Stop Docker Compose services
+        if: always()
+        run: docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v
+
+  # ─── Build & Push Docker Images ────────────────────────────────────────
+  build:
+    name: Build & Push Images
+    needs: [e2e-tests, api-tests]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta-api
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push API image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/api
+          file: ./apps/api/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-api.outputs.tags }}
+          labels: ${{ steps.meta-api.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (Web)
+        id: meta-web
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push Web image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/web
+          file: ./apps/web/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-web.outputs.tags }}
+          labels: ${{ steps.meta-web.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Extract metadata (IoT Simulator)
+        id: meta-iot
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/iot-simulator
+          tags: |
+            type=ref,event=branch
+            type=sha,prefix=
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build and push IoT Simulator image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./apps/iot-simulator
+          file: ./apps/iot-simulator/Dockerfile
+          push: ${{ github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta-iot.outputs.tags }}
+          labels: ${{ steps.meta-iot.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ─── Deploy to Production ──────────────────────────────────────────────
+  deploy:
+    name: Deploy to Production
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Deploy to production server
+        env:
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+          DEPLOY_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_PATH: ${{ secrets.DEPLOY_PATH }}
+        run: |
+          echo "Deploying CortexGrid to production..."
+          echo "Target: ${DEPLOY_HOST}"
+
+          # Setup SSH key
+          mkdir -p ~/.ssh
+          echo "${DEPLOY_KEY}" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          ssh-keyscan -H ${DEPLOY_HOST} >> ~/.ssh/known_hosts 2>/dev/null
+
+          # Copy docker-compose files to server
+          scp -i ~/.ssh/deploy_key \
+            docker-compose.yml \
+            docker/docker-compose.prod.yml \
+            docker/mosquitto/mosquitto.conf \
+            docker/prometheus/prometheus.yml \
+            ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/
+
+          # Deploy on server
+          ssh -i ~/.ssh/deploy_key ${DEPLOY_USER}@${DEPLOY_HOST} << 'DEPLOY_SCRIPT'
+            cd ${{ secrets.DEPLOY_PATH }}
+
+            echo "Pulling latest images..."
+            docker compose pull
+
+            echo "Rolling update..."
+            docker compose up -d --remove-orphans --no-build
+
+            echo "Running database migrations..."
+            docker compose exec -T api npx prisma migrate deploy
+
+            echo "Verifying deployment..."
+            sleep 10
+            curl -sf http://localhost:3001/api/v1/health || (echo "Health check failed!" && exit 1)
+
+            echo "Cleaning up old images..."
+            docker image prune -f
+
+            echo "Deployment complete!"
+          DEPLOY_SCRIPT
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "Deployment succeeded!"
+          else
+            echo "Deployment failed! Check logs for details."
+            exit 1
+          fi

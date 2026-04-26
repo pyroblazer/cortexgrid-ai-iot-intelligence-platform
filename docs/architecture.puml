@@ -1,0 +1,101 @@
+@startuml CortexGrid Architecture
+!theme plain
+skinparam componentStyle rectangle
+skinparam backgroundColor #FEFEFE
+skinparam shadowing false
+
+title CortexGrid - AI-Powered IoT Intelligence Platform\nSystem Architecture
+
+actor "User" as user
+actor "IoT Device" as device
+
+package "Frontend (Next.js)" {
+  component [App Router\n(SSR/SSG)] as approuter
+  component [Dashboard] as dashboard
+  component [Device Manager] as devicemgr
+  component [Alert Center] as alerts
+  component [AI Assistant] as aiui
+  component [Billing Portal] as billing
+  component [WebSocket Client] as wsclient
+}
+
+package "API Gateway (NestJS)" {
+  component [Auth Module\n(JWT + RBAC)] as auth
+  component [Device Module] as devicemod
+  component [Telemetry Module] as telemetry
+  component [Alert Module] as alertmod
+  component [AI Module] as aimod
+  component [Billing Module\n(Stripe)] as billingmod
+  component [Notification Module] as notifmod
+  component [WebSocket Gateway] as wsgateway
+}
+
+package "Data Layer" {
+  database "PostgreSQL\n(Prisma ORM)" as pg
+  database "Redis\n(Cache + Pub/Sub)" as redis
+  queue "BullMQ\n(Job Queue)" as bullmq
+}
+
+package "IoT Infrastructure" {
+  component [MQTT Broker\n(Mosquitto)] as mqtt
+  component [IoT Simulator] as simulator
+}
+
+package "AI Stack" {
+  component [Ollama\n(Local LLM)] as ollama
+  component [Statistical\nAnomaly Engine] as anomaly
+}
+
+package "Observability" {
+  component [Prometheus\n(Metrics)] as prometheus
+  component [Grafana\n(Dashboards)] as grafana
+  component [ELK Stack\n(Logging)] as elk
+}
+
+package "External" {
+  component [Stripe\n(Payments)] as stripe
+}
+
+user --> approuter : HTTPS
+approuter --> dashboard
+approuter --> devicemgr
+approuter --> alerts
+approuter --> aiui
+approuter --> billing
+wsclient --> wsgateway : WebSocket
+
+approuter --> auth : REST API
+approuter --> devicemod : REST API
+apprainer --> telemetry : REST API
+approuter --> alertmod : REST API
+approuter --> aimod : REST API
+approuter --> billingmod : REST API
+approuter --> notifmod : REST API
+
+device --> mqtt : MQTT
+simulator --> mqtt : MQTT
+mqtt --> telemetry : Subscribe
+
+auth --> pg
+devicemod --> pg
+telemetry --> pg
+telemetry --> redis : Cache
+alertmod --> pg
+billingmod --> pg
+billingmod --> stripe : API
+notifmod --> pg
+aimod --> ollama : HTTP
+aimod --> anomaly : Internal
+aimod --> telemetry : Query
+
+telemetry --> wsgateway : Push
+wsgateway --> wsclient : Real-time
+
+bullmq --> redis
+notifmod --> bullmq : Jobs
+
+pg <-- prometheus : Scrape
+prometheus --> grafana : Datasource
+api --> elk : Logs
+
+@enduml

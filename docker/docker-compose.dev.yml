@@ -1,0 +1,66 @@
+version: "3.9"
+
+services:
+  api:
+    build:
+      context: ./apps/api
+      dockerfile: Dockerfile.dev
+    container_name: cortexgrid-api-dev
+    command: npm run dev
+    volumes:
+      - ./apps/api/src:/app/src:ro
+      - ./apps/api/prisma:/app/prisma:ro
+      - ./apps/api/tsconfig.json:/app/tsconfig.json:ro
+      - ./apps/api/tsconfig.build.json:/app/tsconfig.build.json:ro
+      - ./apps/api/nest-cli.json:/app/nest-cli.json:ro
+    ports:
+      - "3001:3001"
+      - "9229:9229"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://cortexgrid:cortexgrid@postgres:5432/cortexgrid?schema=public
+      - REDIS_HOST=redis
+      - REDIS_PORT=6379
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+    env_file:
+      - .env
+
+  web:
+    build:
+      context: ./apps/web
+      dockerfile: Dockerfile.dev
+    container_name: cortexgrid-web-dev
+    command: npm run dev
+    volumes:
+      - ./apps/web/src:/app/src:ro
+      - ./apps/web/public:/app/public:ro
+      - ./apps/web/next.config.js:/app/next.config.js:ro
+      - ./apps/web/tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ./apps/web/postcss.config.js:/app/postcss.config.js:ro
+      - ./apps/web/tsconfig.json:/app/tsconfig.json:ro
+    ports:
+      - "3000:3000"
+      - "9230:9229"
+    environment:
+      - NODE_ENV=development
+      - NEXT_PUBLIC_API_URL=http://api:3001
+      - NEXT_PUBLIC_WS_URL=ws://api:3001
+    env_file:
+      - .env
+
+  iot-simulator:
+    build:
+      context: ./apps/iot-simulator
+      dockerfile: Dockerfile.dev
+    container_name: cortexgrid-iot-simulator-dev
+    command: npm run dev
+    volumes:
+      - ./apps/iot-simulator/src:/app/src:ro
+      - ./apps/iot-simulator/tsconfig.json:/app/tsconfig.json:ro
+    environment:
+      - NODE_ENV=development
+      - MQTT_BROKER_URL=mqtt://mosquitto:1883
+
+  prometheus:
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro

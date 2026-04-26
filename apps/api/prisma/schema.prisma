@@ -1,0 +1,252 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Enums ──────────────────────────────────────────────────────────────────
+
+enum PlanType {
+  FREE
+  PRO
+  ENTERPRISE
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  INACTIVE
+  TRIALING
+}
+
+enum MembershipRole {
+  OWNER
+  ADMIN
+  MEMBER
+  VIEWER
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum DeviceType {
+  SENSOR
+  ACTUATOR
+  GATEWAY
+}
+
+enum DeviceStatus {
+  ONLINE
+  OFFLINE
+  MAINTENANCE
+}
+
+enum AlertSeverity {
+  CRITICAL
+  WARNING
+  INFO
+}
+
+enum AlertStatus {
+  ACTIVE
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+enum NotificationType {
+  ALERT
+  BILLING
+  SYSTEM
+  INVITATION
+}
+
+// ─── Models ─────────────────────────────────────────────────────────────────
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  passwordHash   String
+  firstName      String
+  lastName       String
+  avatarUrl      String?
+  emailVerified  Boolean        @default(false)
+  isActive       Boolean        @default(true)
+  lastLoginAt    DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  memberships    Membership[]
+  ownedOrgs      Organization[] @relation("OwnedOrganizations")
+  alerts         Alert[]        @relation("AcknowledgedAlerts")
+  notifications  Notification[]
+}
+
+model Organization {
+  id                           String             @id @default(cuid())
+  name                         String
+  slug                         String             @unique
+  logoUrl                      String?
+  plan                         PlanType           @default(FREE)
+  stripeCustomerId             String?            @unique
+  stripeSubscriptionId         String?            @unique
+  subscriptionStatus           SubscriptionStatus @default(INACTIVE)
+  subscriptionCurrentPeriodEnd DateTime?
+  deviceLimit                  Int                @default(5)
+  isActive                     Boolean            @default(true)
+  settings                     Json               @default("{}")
+  createdAt                    DateTime           @default(now())
+  updatedAt                    DateTime           @updatedAt
+
+  owner       User           @relation("OwnedOrganizations", fields: [ownerId], references: [id])
+  ownerId     String
+  memberships Membership[]
+  devices     Device[]
+  alerts      Alert[]
+  alertRules  AlertRule[]
+  invitations Invitation[]
+  usageRecords UsageRecord[]
+}
+
+model Membership {
+  id             String         @id @default(cuid())
+  userId         String
+  organizationId String
+  role           MembershipRole @default(MEMBER)
+  joinedAt       DateTime       @default(now())
+  isActive       Boolean        @default(true)
+
+  user         User         @relation(fields: [userId], references: [id])
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([userId, organizationId])
+}
+
+model Invitation {
+  id             String           @id @default(cuid())
+  email          String
+  organizationId String
+  role           MembershipRole   @default(MEMBER)
+  token          String           @unique
+  invitedBy      String
+  status         InvitationStatus @default(PENDING)
+  expiresAt      DateTime
+  createdAt      DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  inviter      User         @relation(fields: [invitedBy], references: [id])
+}
+
+model Device {
+  id              String       @id @default(cuid())
+  organizationId  String
+  name            String
+  serialNumber    String       @unique
+  type            DeviceType
+  status          DeviceStatus @default(OFFLINE)
+  profile         Json         @default("{}")
+  metadata        Json         @default("{}")
+  lastSeenAt      DateTime?
+  firmwareVersion String?
+  location        String?
+  tags            String[]
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  telemetry    Telemetry[]
+  alerts       Alert[]
+
+  @@index([organizationId, status])
+}
+
+model Telemetry {
+  id             String   @id @default(cuid())
+  deviceId       String
+  organizationId String
+  timestamp      DateTime @default(now())
+  metrics        Json
+
+  device Device @relation(fields: [deviceId], references: [id])
+
+  @@index([deviceId, timestamp(sort: Desc)])
+  @@index([organizationId, timestamp(sort: Desc)])
+}
+
+model Alert {
+  id               String        @id @default(cuid())
+  organizationId   String
+  deviceId         String?
+  ruleId           String?
+  severity         AlertSeverity
+  status           AlertStatus   @default(ACTIVE)
+  title            String
+  message          String
+  acknowledgedBy   String?
+  acknowledgedAt   DateTime?
+  resolvedAt       DateTime?
+  metadata         Json          @default("{}")
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  device            Device?      @relation(fields: [deviceId], references: [id])
+  acknowledgedByUser User?       @relation("AcknowledgedAlerts", fields: [acknowledgedBy], references: [id])
+  rule              AlertRule?   @relation(fields: [ruleId], references: [id])
+
+  @@index([organizationId, status])
+}
+
+model AlertRule {
+  id              String        @id @default(cuid())
+  organizationId  String
+  name            String
+  description     String?
+  condition       Json
+  severity        AlertSeverity @default(WARNING)
+  isActive        Boolean       @default(true)
+  lastTriggeredAt DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+  alerts       Alert[]
+}
+
+model UsageRecord {
+  id             String   @id @default(cuid())
+  organizationId String
+  period         DateTime
+  deviceCount    Int      @default(0)
+  telemetryCount Int      @default(0)
+  apiCalls       Int      @default(0)
+  aiQueries      Int      @default(0)
+  storageUsedMb  Float    @default(0)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, period])
+}
+
+model Notification {
+  id             String           @id @default(cuid())
+  userId         String
+  organizationId String
+  type           NotificationType
+  title          String
+  message        String
+  isRead         Boolean          @default(false)
+  metadata       Json             @default("{}")
+  createdAt      DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
