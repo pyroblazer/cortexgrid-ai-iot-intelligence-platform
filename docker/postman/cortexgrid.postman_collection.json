@@ -1,0 +1,1068 @@
+{
+  "info": {
+    "name": "CortexGrid API",
+    "description": "Complete API test collection for the CortexGrid AI-IoT Intelligence Platform.\n\nCovers authentication, device management, telemetry ingestion, alerts, AI features, and billing.\n\nVariables:\n- base_url: API base URL\n- token: JWT access token (auto-set on login)\n- org_id: Organization ID (auto-set on register/login)\n- device_id: Device ID (auto-set on device creation)",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{token}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "base_url", "value": "http://localhost:3001" },
+    { "key": "token", "value": "" },
+    { "key": "refresh_token", "value": "" },
+    { "key": "org_id", "value": "" },
+    { "key": "device_id", "value": "" },
+    { "key": "alert_id", "value": "" },
+    { "key": "rule_id", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Authentication endpoints for user registration, login, token refresh, and profile retrieval.",
+      "item": [
+        {
+          "name": "Register",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has required fields', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('user');",
+                  "    pm.expect(json).to.have.property('accessToken');",
+                  "    pm.expect(json).to.have.property('refreshToken');",
+                  "    pm.expect(json.user).to.have.property('id');",
+                  "    pm.expect(json.user).to.have.property('email');",
+                  "});",
+                  "",
+                  "pm.test('User email matches request', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.user.email).to.eql(pm.environment.get('test_email') || 'testuser@cortexgrid.io');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('token', json.accessToken);",
+                  "    pm.environment.set('refresh_token', json.refreshToken);",
+                  "    if (json.user.organizationId) {",
+                  "        pm.environment.set('org_id', json.user.organizationId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/register",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "register"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"testuser@cortexgrid.io\",\n    \"password\": \"SecureP@ss123!\",\n    \"firstName\": \"Test\",\n    \"lastName\": \"User\",\n    \"organizationName\": \"Test Organization\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has tokens', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('accessToken');",
+                  "    pm.expect(json).to.have.property('refreshToken');",
+                  "    pm.expect(json.accessToken).to.be.a('string').and.not.empty;",
+                  "});",
+                  "",
+                  "pm.test('Response has user object', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('user');",
+                  "    pm.expect(json.user).to.have.property('id');",
+                  "    pm.expect(json.user).to.have.property('email');",
+                  "    pm.expect(json.user).to.have.property('role');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('token', json.accessToken);",
+                  "    pm.environment.set('refresh_token', json.refreshToken);",
+                  "    if (json.user.organizationId) {",
+                  "        pm.environment.set('org_id', json.user.organizationId);",
+                  "    }",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"testuser@cortexgrid.io\",\n    \"password\": \"SecureP@ss123!\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Refresh Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has new tokens', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('accessToken');",
+                  "    pm.expect(json).to.have.property('refreshToken');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('token', json.accessToken);",
+                  "    pm.environment.set('refresh_token', json.refreshToken);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/refresh",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "refresh"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"refreshToken\": \"{{refresh_token}}\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Me",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has user profile', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('email');",
+                  "    pm.expect(json).to.have.property('firstName');",
+                  "    pm.expect(json).to.have.property('lastName');",
+                  "    pm.expect(json).to.have.property('role');",
+                  "    pm.expect(json).to.have.property('organizationId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                { "key": "token", "value": "{{token}}", "type": "string" }
+              ]
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Devices",
+      "description": "Device management CRUD operations and status endpoints.",
+      "item": [
+        {
+          "name": "List Devices",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is paginated array', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json).to.have.property('meta');",
+                  "    pm.expect(json.meta).to.have.property('total');",
+                  "    pm.expect(json.meta).to.have.property('page');",
+                  "    pm.expect(json.meta).to.have.property('limit');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices?page=1&limit=20",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has device with required fields', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('type');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json).to.have.property('organizationId');",
+                  "    pm.expect(json).to.have.property('credentials');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    const json = pm.response.json();",
+                  "    pm.environment.set('device_id', json.id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Temperature Sensor Alpha\",\n    \"type\": \"TEMPERATURE_SENSOR\",\n    \"description\": \"Industrial temperature sensor for Zone A\",\n    \"location\": {\n        \"latitude\": 37.7749,\n        \"longitude\": -122.4194,\n        \"name\": \"Building A, Floor 3\"\n    },\n    \"metadata\": {\n        \"manufacturer\": \"SensorCorp\",\n        \"model\": \"TC-500\",\n        \"firmwareVersion\": \"2.1.0\"\n    },\n    \"tags\": [\"temperature\", \"zone-a\", \"critical\"]\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response matches created device', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.id).to.eql(pm.environment.get('device_id'));",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('type');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json).to.have.property('lastSeenAt');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices", "{{device_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Update Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Device name updated', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.name).to.eql('Temperature Sensor Alpha v2');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices", "{{device_id}}"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"Temperature Sensor Alpha v2\",\n    \"description\": \"Updated description for upgraded sensor\",\n    \"tags\": [\"temperature\", \"zone-a\", \"critical\", \"upgraded\"]\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Device Status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has status info', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('deviceId');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json).to.have.property('lastSeenAt');",
+                  "    pm.expect(json).to.have.property('uptime');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices/{{device_id}}/status",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices", "{{device_id}}", "status"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Device",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 or 204', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 204]);",
+                  "});",
+                  "",
+                  "pm.test('Response confirms deletion', function () {",
+                  "    if (pm.response.code === 200) {",
+                  "        const json = pm.response.json();",
+                  "        pm.expect(json).to.have.property('deleted');",
+                  "        pm.expect(json.deleted).to.eql(true);",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/devices/{{device_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "devices", "{{device_id}}"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Telemetry",
+      "description": "Telemetry data ingestion and querying endpoints.",
+      "item": [
+        {
+          "name": "Ingest Telemetry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response acknowledges ingestion', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('acknowledged');",
+                  "    pm.expect(json.acknowledged).to.eql(true);",
+                  "    pm.expect(json).to.have.property('timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/telemetry/ingest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "telemetry", "ingest"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"deviceId\": \"{{device_id}}\",\n    \"timestamp\": \"{{currentTimestamp}}\",\n    \"data\": {\n        \"temperature\": 23.5,\n        \"humidity\": 67.2,\n        \"pressure\": 1013.25,\n        \"batteryLevel\": 85\n    },\n    \"metadata\": {\n        \"quality\": \"high\",\n        \"signalStrength\": -42\n    }\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Query Telemetry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has telemetry data', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json).to.have.property('meta');",
+                  "});",
+                  "",
+                  "pm.test('Data points have expected structure', function () {",
+                  "    const json = pm.response.json();",
+                  "    if (json.data.length > 0) {",
+                  "        const point = json.data[0];",
+                  "        pm.expect(point).to.have.property('timestamp');",
+                  "        pm.expect(point).to.have.property('deviceId');",
+                  "        pm.expect(point).to.have.property('data');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/telemetry?deviceId={{device_id}}&from=2024-01-01T00:00:00Z&to=2026-12-31T23:59:59Z&interval=1h&limit=100",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "telemetry"],
+              "query": [
+                { "key": "deviceId", "value": "{{device_id}}" },
+                { "key": "from", "value": "2024-01-01T00:00:00Z" },
+                { "key": "to", "value": "2026-12-31T23:59:59Z" },
+                { "key": "interval", "value": "1h" },
+                { "key": "limit", "value": "100" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Latest Telemetry",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has latest reading', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('deviceId');",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json).to.have.property('timestamp');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/telemetry/{{device_id}}/latest",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "telemetry", "{{device_id}}", "latest"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Alerts",
+      "description": "Alert management, rule creation, and alert resolution endpoints.",
+      "item": [
+        {
+          "name": "List Alerts",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is paginated', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "    pm.expect(json).to.have.property('meta');",
+                  "});",
+                  "",
+                  "if (pm.response.json().data.length > 0) {",
+                  "    pm.environment.set('alert_id', pm.response.json().data[0].id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts?page=1&limit=20&status=ACTIVE",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "alerts"],
+              "query": [
+                { "key": "page", "value": "1" },
+                { "key": "limit", "value": "20" },
+                { "key": "status", "value": "ACTIVE" }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Rule",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response has rule definition', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('name');",
+                  "    pm.expect(json).to.have.property('condition');",
+                  "    pm.expect(json).to.have.property('severity');",
+                  "    pm.expect(json).to.have.property('enabled');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 201) {",
+                  "    pm.environment.set('rule_id', pm.response.json().id);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/rules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "alerts", "rules"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"name\": \"High Temperature Alert\",\n    \"description\": \"Triggers when temperature exceeds threshold for 5 minutes\",\n    \"deviceId\": \"{{device_id}}\",\n    \"metric\": \"temperature\",\n    \"condition\": {\n        \"operator\": \"greater_than\",\n        \"value\": 35,\n        \"duration\": \"5m\"\n    },\n    \"severity\": \"CRITICAL\",\n    \"channels\": [\"email\", \"websocket\"],\n    \"cooldown\": \"15m\",\n    \"enabled\": true\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "List Rules",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has rules array', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('data');",
+                  "    pm.expect(json.data).to.be.an('array');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/rules",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "alerts", "rules"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Acknowledge Alert",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Alert is acknowledged', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json.status).to.eql('ACKNOWLEDGED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/{{alert_id}}/acknowledge",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "alerts", "{{alert_id}}", "acknowledge"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"note\": \"Investigating the temperature spike. Checking HVAC system.\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Resolve Alert",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Alert is resolved', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('id');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json.status).to.eql('RESOLVED');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/alerts/{{alert_id}}/resolve",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "alerts", "{{alert_id}}", "resolve"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"resolution\": \"HVAC system repaired. Temperature returned to normal operating range.\"\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "AI",
+      "description": "AI-powered analytics endpoints for natural language queries, anomaly detection, and telemetry summarization.",
+      "item": [
+        {
+          "name": "Natural Language Query",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has AI query result', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('query');",
+                  "    pm.expect(json).to.have.property('result');",
+                  "    pm.expect(json).to.have.property('confidence');",
+                  "    pm.expect(json).to.have.property('explanation');",
+                  "});",
+                  "",
+                  "pm.test('Confidence is a valid number', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.confidence).to.be.a('number');",
+                  "    pm.expect(json.confidence).to.be.at.least(0);",
+                  "    pm.expect(json.confidence).to.be.at.most(1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/ai/query",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ai", "query"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"query\": \"What was the average temperature across all sensors in Building A last week?\",\n    \"context\": {\n        \"organizationId\": \"{{org_id}}\",\n        \"timeRange\": {\n            \"from\": \"2024-01-01T00:00:00Z\",\n            \"to\": \"2026-12-31T23:59:59Z\"\n        },\n        \"deviceFilter\": {\n            \"tags\": [\"temperature\", \"zone-a\"]\n        }\n    }\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Anomaly Detection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has anomaly results', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('anomalies');",
+                  "    pm.expect(json.anomalies).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Anomalies have correct structure', function () {",
+                  "    const json = pm.response.json();",
+                  "    if (json.anomalies.length > 0) {",
+                  "        const anomaly = json.anomalies[0];",
+                  "        pm.expect(anomaly).to.have.property('deviceId');",
+                  "        pm.expect(anomaly).to.have.property('metric');",
+                  "        pm.expect(anomaly).to.have.property('timestamp');",
+                  "        pm.expect(anomaly).to.have.property('severity');",
+                  "        pm.expect(anomaly).to.have.property('expectedValue');",
+                  "        pm.expect(anomaly).to.have.property('actualValue');",
+                  "        pm.expect(anomaly).to.have.property('deviation');",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/ai/anomaly-detection",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ai", "anomaly-detection"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"deviceId\": \"{{device_id}}\",\n    \"metrics\": [\"temperature\", \"humidity\"],\n    \"timeRange\": {\n        \"from\": \"2024-01-01T00:00:00Z\",\n        \"to\": \"2026-12-31T23:59:59Z\"\n    },\n    \"sensitivity\": 0.95,\n    \"algorithm\": \"isolation_forest\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Telemetry Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has summary', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('summary');",
+                  "    pm.expect(json).to.have.property('statistics');",
+                  "    pm.expect(json).to.have.property('insights');",
+                  "});",
+                  "",
+                  "pm.test('Statistics have required fields', function () {",
+                  "    const json = pm.response.json();",
+                  "    if (json.statistics) {",
+                  "        Object.values(json.statistics).forEach(function(stat) {",
+                  "            pm.expect(stat).to.have.property('min');",
+                  "            pm.expect(stat).to.have.property('max');",
+                  "            pm.expect(stat).to.have.property('avg');",
+                  "            pm.expect(stat).to.have.property('stddev');",
+                  "        });",
+                  "    }",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/ai/telemetry-summary",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "ai", "telemetry-summary"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"deviceIds\": [\"{{device_id}}\"],\n    \"timeRange\": {\n        \"from\": \"2024-01-01T00:00:00Z\",\n        \"to\": \"2026-12-31T23:59:59Z\"\n    },\n    \"metrics\": [\"temperature\", \"humidity\", \"pressure\"],\n    \"includePredictions\": true,\n    \"includeTrends\": true\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Billing",
+      "description": "Subscription management, Stripe checkout, and webhook testing.",
+      "item": [
+        {
+          "name": "Get Subscription",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has subscription details', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('plan');",
+                  "    pm.expect(json).to.have.property('status');",
+                  "    pm.expect(json).to.have.property('currentPeriodEnd');",
+                  "});",
+                  "",
+                  "pm.test('Plan is a valid value', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json.plan).to.be.oneOf(['FREE', 'PRO', 'ENTERPRISE']);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/subscription",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "subscription"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Checkout Session",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has checkout URL', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('checkoutUrl');",
+                  "    pm.expect(json).to.have.property('sessionId');",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/checkout",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "checkout"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"priceId\": \"price_pro_monthly\",\n    \"successUrl\": \"http://localhost:3000/billing/success?session_id={CHECKOUT_SESSION_ID}\",\n    \"cancelUrl\": \"http://localhost:3000/billing/cancel\"\n}"
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Webhook Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Webhook acknowledged', function () {",
+                  "    const json = pm.response.json();",
+                  "    pm.expect(json).to.have.property('received');",
+                  "    pm.expect(json.received).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json" },
+              { "key": "Stripe-Signature", "value": "test_webhook_signature" }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/billing/webhook",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "billing", "webhook"]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"id\": \"evt_test_1234567890\",\n    \"object\": \"event\",\n    \"type\": \"checkout.session.completed\",\n    \"data\": {\n        \"object\": {\n            \"id\": \"cs_test_1234567890\",\n            \"customer\": \"cus_test_1234567890\",\n            \"subscription\": \"sub_test_1234567890\",\n            \"metadata\": {\n                \"organizationId\": \"{{org_id}}\"\n            },\n            \"amount_total\": 2900,\n            \"currency\": \"usd\"\n        }\n    },\n    \"created\": 1700000000,\n    \"livemode\": false,\n    \"pending_webhooks\": 1,\n    \"request\": {\n        \"id\": \"req_test_1234567890\",\n        \"idempotency_key\": null\n    }\n}"
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}
