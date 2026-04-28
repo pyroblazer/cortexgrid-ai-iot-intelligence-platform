@@ -268,7 +268,7 @@ jobs:
           DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
 
       - name: Run integration tests with coverage
-        run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover
+        run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover --forceExit
 
       - name: Upload integration coverage report
         uses: actions/upload-artifact@v4
@@ -357,19 +357,26 @@ jobs:
 
       - name: Start API server
         run: |
-          cd apps/api && node dist/main.js &
+          cd apps/api && node dist/main.js > /tmp/api-server.log 2>&1 &
+          API_PID=$!
+          echo "API server PID: $API_PID"
           echo "Waiting for API server to start..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
               echo "API server is ready"
               break
             fi
+            if [ "$i" -eq 30 ]; then
+              echo "API server failed to start after 60s. Logs:"
+              cat /tmp/api-server.log
+              exit 1
+            fi
             echo "Attempt $i: API not ready, waiting..."
             sleep 2
           done
 
       - name: Verify API is healthy
-        run: curl -sf http://localhost:3001/health
+        run: curl -sf http://localhost:3001/health || { echo "Server logs:"; cat /tmp/api-server.log; exit 1; }
 
       - name: Install Newman
         run: npm install -g newman newman-reporter-htmlextra
@@ -475,28 +482,40 @@ jobs:
 
       - name: Start API server
         run: |
-          cd apps/api && node dist/main.js &
+          cd apps/api && node dist/main.js > /tmp/api-server.log 2>&1 &
+          API_PID=$!
+          echo "API server PID: $API_PID"
           echo "Waiting for API server to start..."
           for i in $(seq 1 30); do
             if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
               echo "API server is ready"
               break
             fi
+            if [ "$i" -eq 30 ]; then
+              echo "API server failed to start after 60s. Logs:"
+              cat /tmp/api-server.log
+              exit 1
+            fi
             echo "Attempt $i: API not ready, waiting..."
             sleep 2
           done
 
       - name: Verify API is healthy
-        run: curl -sf http://localhost:3001/health
+        run: curl -sf http://localhost:3001/health || { echo "Server logs:"; cat /tmp/api-server.log; exit 1; }
 
       - name: Start Web server
         run: |
-          cd apps/web && pnpm dev &
+          cd apps/web && pnpm dev > /tmp/web-server.log 2>&1 &
           echo "Waiting for Web server to start..."
           for i in $(seq 1 60); do
             if curl -sf http://localhost:3000 > /dev/null 2>&1; then
               echo "Web server is ready"
               break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Web server failed to start. Logs:"
+              cat /tmp/web-server.log
+              exit 1
             fi
             echo "Attempt $i: Web not ready, waiting..."
             sleep 3
