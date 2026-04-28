@@ -66,8 +66,8 @@ services:
   # ─── API (NestJS) ──────────────────────────────────────────────────────
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/api/Dockerfile
     container_name: cortexgrid-api
     restart: unless-stopped
     ports:
@@ -98,8 +98,8 @@ services:
   # ─── Web (Next.js) ─────────────────────────────────────────────────────
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/web/Dockerfile
     container_name: cortexgrid-web
     restart: unless-stopped
     ports:
@@ -118,8 +118,8 @@ services:
   # ─── IoT Simulator ─────────────────────────────────────────────────────
   iot-simulator:
     build:
-      context: ./apps/iot-simulator
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: apps/iot-simulator/Dockerfile
     container_name: cortexgrid-iot-simulator
     restart: unless-stopped
     environment:

@@ -479,7 +479,7 @@ jobs:
       - name: Build and push API image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/api
+          context: .
           file: ./apps/api/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta-api.outputs.tags }}
@@ -500,7 +500,7 @@ jobs:
       - name: Build and push Web image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/web
+          context: .
           file: ./apps/web/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta-web.outputs.tags }}
@@ -521,7 +521,7 @@ jobs:
       - name: Build and push IoT Simulator image
         uses: docker/build-push-action@v5
         with:
-          context: ./apps/iot-simulator
+          context: .
           file: ./apps/iot-simulator/Dockerfile
           push: ${{ github.ref == 'refs/heads/main' }}
           tags: ${{ steps.meta-iot.outputs.tags }}

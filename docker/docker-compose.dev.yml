@@ -3,16 +3,16 @@ version: "3.9"
 services:
   api:
     build:
-      context: ./apps/api
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/api/Dockerfile.dev
     container_name: cortexgrid-api-dev
-    command: npm run dev
+    command: sh -c "cd apps/api && pnpm run dev"
     volumes:
-      - ./apps/api/src:/app/src:ro
-      - ./apps/api/prisma:/app/prisma:ro
-      - ./apps/api/tsconfig.json:/app/tsconfig.json:ro
-      - ./apps/api/tsconfig.build.json:/app/tsconfig.build.json:ro
-      - ./apps/api/nest-cli.json:/app/nest-cli.json:ro
+      - ./apps/api/src:/app/apps/api/src:ro
+      - ./apps/api/prisma:/app/apps/api/prisma:ro
+      - ./apps/api/tsconfig.json:/app/apps/api/tsconfig.json:ro
+      - ./apps/api/tsconfig.build.json:/app/apps/api/tsconfig.build.json:ro
+      - ./apps/api/nest-cli.json:/app/apps/api/nest-cli.json:ro
     ports:
       - "3001:3001"
       - "9229:9229"
@@ -27,17 +27,17 @@ services:
 
   web:
     build:
-      context: ./apps/web
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/web/Dockerfile.dev
     container_name: cortexgrid-web-dev
-    command: npm run dev
+    command: sh -c "cd apps/web && pnpm run dev"
     volumes:
-      - ./apps/web/src:/app/src:ro
-      - ./apps/web/public:/app/public:ro
-      - ./apps/web/next.config.js:/app/next.config.js:ro
-      - ./apps/web/tailwind.config.ts:/app/tailwind.config.ts:ro
-      - ./apps/web/postcss.config.js:/app/postcss.config.js:ro
-      - ./apps/web/tsconfig.json:/app/tsconfig.json:ro
+      - ./apps/web/src:/app/apps/web/src:ro
+      - ./apps/web/public:/app/apps/web/public:ro
+      - ./apps/web/next.config.js:/app/apps/web/next.config.js:ro
+      - ./apps/web/tailwind.config.ts:/app/apps/web/tailwind.config.ts:ro
+      - ./apps/web/postcss.config.js:/app/apps/web/postcss.config.js:ro
+      - ./apps/web/tsconfig.json:/app/apps/web/tsconfig.json:ro
     ports:
       - "3000:3000"
       - "9230:9229"
@@ -50,13 +50,13 @@ services:
 
   iot-simulator:
     build:
-      context: ./apps/iot-simulator
-      dockerfile: Dockerfile.dev
+      context: .
+      dockerfile: apps/iot-simulator/Dockerfile.dev
     container_name: cortexgrid-iot-simulator-dev
-    command: npm run dev
+    command: sh -c "cd apps/iot-simulator && pnpm run dev"
     volumes:
-      - ./apps/iot-simulator/src:/app/src:ro
-      - ./apps/iot-simulator/tsconfig.json:/app/tsconfig.json:ro
+      - ./apps/iot-simulator/src:/app/apps/iot-simulator/src:ro
+      - ./apps/iot-simulator/tsconfig.json:/app/apps/iot-simulator/tsconfig.json:ro
     environment:
       - NODE_ENV=development
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
