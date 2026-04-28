@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { ConfigService } from '@nestjs/config';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { BillingService } from '../billing.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 
@@ -31,12 +31,15 @@ describe('BillingService', () => {
         STRIPE_WEBHOOK_SECRET: '',
         STRIPE_PRO_PRICE_ID: '',
         STRIPE_ENTERPRISE_PRICE_ID: '',
+        NEXT_PUBLIC_API_URL: 'http://localhost:3001',
       };
       return config[key] ?? defaultValue;
     }),
   };
 
   beforeEach(async () => {
+    jest.clearAllMocks();
+
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         BillingService,
@@ -47,10 +50,6 @@ describe('BillingService', () => {
 
     service = module.get<BillingService>(BillingService);
     prisma = module.get(PrismaService);
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
   });
 
   describe('getSubscription', () => {
@@ -247,6 +246,116 @@ describe('BillingService', () => {
     it('should default to FREE for unknown plan', () => {
       const result = service.getPlanLimits('UNKNOWN' as any);
       expect(result.deviceLimit).toBe(5);
+    });
+  });
+
+  describe('createCheckoutSession', () => {
+    it('should throw BadRequestException when Stripe is not configured', async () => {
+      await expect(
+        service.createCheckoutSession('org_001', 'test@test.com', { plan: 'PRO' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('createPortalSession', () => {
+    it('should throw BadRequestException when Stripe is not configured', async () => {
+      await expect(
+        service.createPortalSession('org_001', { returnUrl: 'http://localhost:3000' }),
+      ).rejects.toThrow(BadRequestException);
+    });
+  });
+
+  describe('handleWebhook', () => {
+    it('should return received:true when Stripe is not configured', async () => {
+      const result = await service.handleWebhook(Buffer.from('{}'), 'sig');
+
+      expect(result).toEqual({ received: true });
+    });
+
+    it('should throw BadRequestException when body is missing', async () => {
+      // Re-create service with Stripe keys configured
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          BillingService,
+          { provide: PrismaService, useValue: mockPrisma },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue?: string) => {
+                const config: Record<string, string> = {
+                  STRIPE_SECRET_KEY: 'sk_test_123',
+                  STRIPE_WEBHOOK_SECRET: 'whsec_123',
+                  STRIPE_PRO_PRICE_ID: 'price_pro',
+                  STRIPE_ENTERPRISE_PRICE_ID: 'price_enterprise',
+                  NEXT_PUBLIC_API_URL: 'http://localhost:3001',
+                };
+                return config[key] ?? defaultValue;
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const stripeService = module.get<BillingService>(BillingService);
+
+      await expect(stripeService.handleWebhook(undefined, 'sig')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+
+    it('should throw BadRequestException when signature is missing', async () => {
+      const module: TestingModule = await Test.createTestingModule({
+        providers: [
+          BillingService,
+          { provide: PrismaService, useValue: mockPrisma },
+          {
+            provide: ConfigService,
+            useValue: {
+              get: jest.fn((key: string, defaultValue?: string) => {
+                const config: Record<string, string> = {
+                  STRIPE_SECRET_KEY: 'sk_test_123',
+                  STRIPE_WEBHOOK_SECRET: 'whsec_123',
+                  STRIPE_PRO_PRICE_ID: 'price_pro',
+                  STRIPE_ENTERPRISE_PRICE_ID: 'price_enterprise',
+                  NEXT_PUBLIC_API_URL: 'http://localhost:3001',
+                };
+                return config[key] ?? defaultValue;
+              }),
+            },
+          },
+        ],
+      }).compile();
+
+      const stripeService = module.get<BillingService>(BillingService);
+
+      await expect(stripeService.handleWebhook(Buffer.from('{}'), '')).rejects.toThrow(
+        BadRequestException,
+      );
+    });
+  });
+
+  describe('getPlanDetails (via getSubscription)', () => {
+    it('should return ENTERPRISE plan details', async () => {
+      const mockOrg = {
+        id: 'org_003',
+        name: 'Enterprise Org',
+        plan: 'ENTERPRISE',
+        subscriptionStatus: 'ACTIVE',
+        subscriptionCurrentPeriodEnd: new Date('2025-01-01'),
+        deviceLimit: 1000,
+        stripeCustomerId: 'cus_ent',
+        createdAt: new Date(),
+      };
+
+      prisma.organization.findUnique.mockResolvedValue(mockOrg);
+      prisma.device.count.mockResolvedValue(500);
+
+      const result = await service.getSubscription('org_003');
+
+      expect(result.plan.type).toBe('ENTERPRISE');
+      expect(result.plan.deviceLimit).toBe(1000);
+      expect(result.plan.telemetryRetentionDays).toBe(365);
+      expect(result.plan.aiQueriesPerDay).toBe(-1);
     });
   });
 });
