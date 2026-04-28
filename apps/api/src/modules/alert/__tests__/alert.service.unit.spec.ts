@@ -4,8 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { AlertService } from '../alert.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 
 describe('AlertService', () => {
   let service: AlertService;

@@ -39,32 +39,36 @@ describe('JwtAuthGuard', () => {
       ]);
     });
 
-    it('should call super.canActivate for non-public routes', () => {
+    it('should delegate to super.canActivate for non-public routes', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(false);
       const context = createMockExecutionContext();
 
-      // super.canActivate returns an Observable, wrap it so we can test the call happened
+      // Mock the parent canActivate to avoid needing Passport strategy registered
+      const mockSuperCanActivate = jest.fn().mockReturnValue(true);
+      Object.getPrototypeOf(Object.getPrototypeOf(guard)).canActivate = mockSuperCanActivate;
+
       const result = guard.canActivate(context);
 
-      // The result should be the return value of super.canActivate
-      // which delegates to Passport's AuthGuard
-      expect(result).toBeDefined();
+      expect(mockSuperCanActivate).toHaveBeenCalledWith(context);
+      expect(result).toBe(true);
     });
 
-    it('should return true when isPublic is undefined (no decorator)', () => {
-      // When getAllAndOverride returns undefined/false, it means no @Public() decorator
+    it('should delegate to super.canActivate when isPublic is undefined (no decorator)', () => {
       jest.spyOn(reflector, 'getAllAndOverride').mockReturnValue(undefined);
       const context = createMockExecutionContext();
 
+      const mockSuperCanActivate = jest.fn().mockReturnValue(true);
+      Object.getPrototypeOf(Object.getPrototypeOf(guard)).canActivate = mockSuperCanActivate;
+
       const result = guard.canActivate(context);
 
-      // Should delegate to super.canActivate (not return true)
-      expect(result).toBeDefined();
+      expect(mockSuperCanActivate).toHaveBeenCalledWith(context);
+      expect(result).toBe(true);
     });
   });
 
   describe('handleRequest', () => {
-    it('should throw UnauthorizedException on error', () => {
+    it('should throw the error itself when err is provided', () => {
       const error = new Error('Token expired');
 
       expect(() => guard.handleRequest(error, null, null)).toThrow(error);
@@ -86,12 +90,6 @@ describe('JwtAuthGuard', () => {
 
       expect(result).toBe(user);
       expect(result).toEqual({ id: 'user_001', email: 'test@example.com' });
-    });
-
-    it('should throw the error itself when err is provided', () => {
-      const customError = new Error('Custom auth failure');
-
-      expect(() => guard.handleRequest(customError, null, null)).toThrow(customError);
     });
 
     it('should throw UnauthorizedException when user is falsy but no error', () => {

@@ -1,5 +1,5 @@
-import { DeviceSimulator, DeviceConfig, createDefaultDeviceConfigs } from '../../src/devices/device-simulator';
-import { TemperatureSensor, MotionDetector } from '../../src/devices/device-profile';
+import { DeviceSimulator, DeviceConfig } from '../../src/devices/device-simulator';
+import { TemperatureSensor } from '../../src/devices/device-profile';
 
 // ---------------------------------------------------------------------------
 // Mock MqttClient - we mock the entire module
@@ -75,6 +75,7 @@ describe('DeviceSimulator', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.useFakeTimers();
+    jest.clearAllTimers();
     mqttClient = createMockMqttClient();
   });
 

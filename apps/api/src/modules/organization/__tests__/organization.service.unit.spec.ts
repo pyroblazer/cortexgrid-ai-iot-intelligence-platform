@@ -5,8 +5,8 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { OrganizationService } from '../organization.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 
 // Mock uuid to return predictable values
 jest.mock('uuid', () => ({

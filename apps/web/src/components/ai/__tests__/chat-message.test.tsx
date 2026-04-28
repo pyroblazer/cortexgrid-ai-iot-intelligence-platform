@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom';
 /**
  * Unit tests for ChatMessage component (src/components/ai/chat-message.tsx)
  *
@@ -97,11 +98,11 @@ describe('ChatMessage component', () => {
 
   it('renders whitespace-pre-wrap for multi-line content', () => {
     const { container } = render(
-      <ChatMessage role="assistant" content="line1\nline2" timestamp={baseTimestamp} />
+      <ChatMessage role="assistant" content={"line1\nline2"} timestamp={baseTimestamp} />
     );
     const contentEl = container.querySelector('[class*="whitespace-pre-wrap"]');
     expect(contentEl).toBeInTheDocument();
-    expect(contentEl).toHaveTextContent('line1\nline2');
+    expect(contentEl?.textContent).toBe('line1\nline2');
   });
 
   it('applies blue icon background for user avatar', () => {

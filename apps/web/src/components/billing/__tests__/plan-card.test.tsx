@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom';
 /**
  * Unit tests for PlanCard component (src/components/billing/plan-card.tsx)
  *

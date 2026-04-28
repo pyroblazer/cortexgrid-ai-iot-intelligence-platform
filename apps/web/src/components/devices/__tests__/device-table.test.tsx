@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom';
 /**
  * Unit tests for DeviceTable component (src/components/devices/device-table.tsx)
  *
@@ -186,7 +187,7 @@ describe('DeviceTable component', () => {
 
   it('shows "Never" for devices with no lastSeenAt', () => {
     render(<DeviceTable {...defaultProps} />);
-    expect(screen.getByText('Never')).toBeInTheDocument();
+    expect(screen.getAllByText('Never').length).toBeGreaterThan(0);
   });
 
   it('calls onView when view button is clicked', () => {

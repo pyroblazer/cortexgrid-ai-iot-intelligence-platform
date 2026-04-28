@@ -4,7 +4,7 @@ import { HttpService } from '@nestjs/axios';
 import { NotFoundException } from '@nestjs/common';
 import { of, throwError } from 'rxjs';
 import { AiService } from '../ai.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
 
 describe('AiService', () => {
   let service: AiService;
@@ -223,8 +223,8 @@ describe('AiService', () => {
       expect(result.anomalyCount).toBeGreaterThan(0);
       expect(result.anomalies.length).toBeGreaterThan(0);
       expect(result.statistics).toBeDefined();
-      expect(result.statistics.mean).toBeDefined();
-      expect(result.statistics.stddev).toBeDefined();
+      expect(result.statistics!.mean).toBeDefined();
+      expect(result.statistics!.stddev).toBeDefined();
     });
 
     it('should respect sensitivity parameter', async () => {
@@ -320,7 +320,7 @@ describe('AiService', () => {
 
       const result = await service.detectAnomalies('device_1', 'org_001', 'temperature');
 
-      expect(result.statistics.sensitivity).toBe(2.0);
+      expect(result.statistics!.sensitivity).toBe(2.0);
     });
   });
 

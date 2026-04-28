@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom';
 /**
  * Unit tests for AlertList component (src/components/dashboard/alert-list.tsx)
  *
@@ -85,7 +86,7 @@ describe('AlertList component', () => {
 
   it('renders device names', () => {
     render(<AlertList />);
-    expect(screen.getByText('Temperature Sensor A1')).toBeInTheDocument();
+    expect(screen.getAllByText('Temperature Sensor A1').length).toBeGreaterThan(0);
   });
 
   it('limits displayed alerts to limit prop', () => {

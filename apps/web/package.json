@@ -9,7 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:unit": "jest --testPathPattern='\\.test\\.(ts|tsx)$'",
+    "test:unit": "jest",
     "test:e2e": "playwright test",
     "clean": "rimraf .next dist node_modules"
   },
