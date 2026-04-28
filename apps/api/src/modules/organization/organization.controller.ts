@@ -8,6 +8,8 @@ import {
   Param,
   Query,
   UseGuards,
+  HttpCode,
+  HttpStatus,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -19,6 +21,7 @@ import {
 } from '@nestjs/swagger';
 import { OrganizationService } from './organization.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { Public } from '../../common/decorators/public.decorator';
 import { RolesGuard } from '../../common/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -26,6 +29,7 @@ import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
 import { MembershipRole } from '@prisma/client';
+import { AuditAction } from '../../common/decorators/audit-action.decorator';
 
 @ApiTags('Organizations')
 @ApiBearerAuth('JWT-auth')
@@ -42,6 +46,7 @@ export class OrganizationController {
   }
 
   @Patch('current')
+  @AuditAction('organization.update', 'Organization')
   @Roles(MembershipRole.OWNER, MembershipRole.ADMIN)
   @ApiOperation({ summary: 'Update current organization' })
   @ApiResponse({ status: 200, description: 'Organization updated' })
@@ -70,6 +75,7 @@ export class OrganizationController {
   }
 
   @Post('current/invite')
+  @AuditAction('invitation.create', 'Invitation')
   @Roles(MembershipRole.OWNER, MembershipRole.ADMIN)
   @ApiOperation({ summary: 'Invite a new member to the organization' })
   @ApiResponse({ status: 201, description: 'Invitation sent' })
@@ -103,6 +109,7 @@ export class OrganizationController {
   }
 
   @Delete('current/members/:memberId')
+  @AuditAction('membership.remove', 'Membership')
   @Roles(MembershipRole.OWNER, MembershipRole.ADMIN)
   @ApiOperation({ summary: 'Remove a member from the organization' })
   @ApiResponse({ status: 200, description: 'Member removed' })
@@ -125,6 +132,7 @@ export class OrganizationController {
   }
 
   @Delete('current/invitations/:invitationId')
+  @AuditAction('invitation.cancel', 'Invitation')
   @Roles(MembershipRole.OWNER, MembershipRole.ADMIN)
   @ApiOperation({ summary: 'Cancel an invitation' })
   @ApiResponse({ status: 200, description: 'Invitation cancelled' })
@@ -146,5 +154,37 @@ export class OrganizationController {
     @CurrentUser('organizationId') organizationId: string,
   ) {
     return this.organizationService.getUsageStats(organizationId);
+  }
+
+  @Get('invitations/:token')
+  @Public()
+  @ApiOperation({ summary: 'Preview an invitation by token' })
+  @ApiResponse({ status: 200, description: 'Invitation preview retrieved' })
+  @ApiParam({ name: 'token', description: 'Invitation token' })
+  async previewInvitation(@Param('token') token: string) {
+    return this.organizationService.previewInvitation(token);
+  }
+
+  @Post('invitations/:token/accept')
+  @AuditAction('invitation.accept', 'Invitation')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Accept an invitation' })
+  @ApiResponse({ status: 200, description: 'Invitation accepted' })
+  @ApiParam({ name: 'token', description: 'Invitation token' })
+  async acceptInvitation(
+    @Param('token') token: string,
+    @CurrentUser('id') userId: string,
+  ) {
+    return this.organizationService.acceptInvitation(token, userId);
+  }
+
+  @Post('invitations/:token/decline')
+  @AuditAction('invitation.decline', 'Invitation')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Decline an invitation' })
+  @ApiResponse({ status: 200, description: 'Invitation declined' })
+  @ApiParam({ name: 'token', description: 'Invitation token' })
+  async declineInvitation(@Param('token') token: string) {
+    return this.organizationService.declineInvitation(token);
   }
 }

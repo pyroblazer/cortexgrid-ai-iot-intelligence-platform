@@ -407,6 +407,61 @@ export class AuthService {
   }
 
   /**
+   * Update the authenticated user's profile (name, avatar).
+   */
+  async updateProfile(userId: string, updateDto: any) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const updated = await this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        ...(updateDto.firstName !== undefined && { firstName: updateDto.firstName }),
+        ...(updateDto.lastName !== undefined && { lastName: updateDto.lastName }),
+        ...(updateDto.avatarUrl !== undefined && { avatarUrl: updateDto.avatarUrl }),
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        avatarUrl: true,
+      },
+    });
+
+    this.logger.log(`Profile updated: ${userId}`);
+    return updated;
+  }
+
+  /**
+   * Change the user's password after verifying the current one.
+   */
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new UnauthorizedException('Current password is incorrect');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await this.redisService.del(`refresh_token:${userId}`);
+
+    this.logger.log(`Password changed: ${userId}`);
+    return { message: 'Password changed successfully' };
+  }
+
+  /**
    * Validate that a user exists and is active.
    *
    * Called by the JWT strategy to attach user info to the request object.
@@ -429,6 +484,70 @@ export class AuthService {
     }
 
     return user;
+  }
+
+  /**
+   * Export all data associated with a user (GDPR Article 20 - Data Portability).
+   */
+  async exportUserData(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        memberships: { include: { organization: true } },
+        notifications: true,
+        alerts: true,
+        invitations: true,
+        ownedOrgs: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const { passwordHash, ...safeUser } = user;
+    return safeUser;
+  }
+
+  /**
+   * Delete a user account and all associated data (GDPR Article 17 - Right to Erasure).
+   */
+  async deleteUserAccount(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        ownedOrgs: true,
+        memberships: true,
+      },
+    });
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    const ownedActiveOrgs = user.ownedOrgs.filter((org) => org.isActive);
+    if (ownedActiveOrgs.length > 0) {
+      throw new BadRequestException(
+        'Cannot delete account while owning active organizations. Transfer ownership or delete organizations first.',
+      );
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.notification.deleteMany({ where: { userId } });
+      await tx.membership.updateMany({
+        where: { userId },
+        data: { isActive: false },
+      });
+      await tx.user.update({
+        where: { id: userId },
+        data: { isActive: false },
+      });
+    });
+
+    await this.redisService.del(`refresh_token:${userId}`);
+
+    this.logger.log(`User account deleted (GDPR): ${userId}`);
+    return { message: 'Account deleted successfully' };
   }
 
   /**

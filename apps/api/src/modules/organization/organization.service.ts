@@ -341,6 +341,130 @@ export class OrganizationService {
     return { message: 'Invitation cancelled' };
   }
 
+  async previewInvitation(token: string) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token },
+      include: {
+        organization: { select: { name: true } },
+        inviter: { select: { email: true, firstName: true } },
+      },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException(`Invitation already ${invitation.status.toLowerCase()}`);
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'EXPIRED' },
+      });
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    return {
+      id: invitation.id,
+      email: invitation.email,
+      role: invitation.role,
+      organizationName: invitation.organization.name,
+      invitedBy: invitation.inviter.email,
+      expiresAt: invitation.expiresAt,
+    };
+  }
+
+  async acceptInvitation(token: string, userId: string) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token },
+      include: { organization: true },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException(`Invitation already ${invitation.status.toLowerCase()}`);
+    }
+
+    if (invitation.expiresAt < new Date()) {
+      await this.prisma.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'EXPIRED' },
+      });
+      throw new BadRequestException('Invitation has expired');
+    }
+
+    const existingMembership = await this.prisma.membership.findUnique({
+      where: {
+        userId_organizationId: {
+          userId,
+          organizationId: invitation.organizationId,
+        },
+      },
+    });
+
+    if (existingMembership?.isActive) {
+      throw new BadRequestException('You are already a member of this organization');
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      await tx.invitation.update({
+        where: { id: invitation.id },
+        data: { status: 'ACCEPTED' },
+      });
+
+      if (existingMembership) {
+        await tx.membership.update({
+          where: { id: existingMembership.id },
+          data: { isActive: true, role: invitation.role },
+        });
+      } else {
+        await tx.membership.create({
+          data: {
+            userId,
+            organizationId: invitation.organizationId,
+            role: invitation.role,
+            isActive: true,
+          },
+        });
+      }
+
+      return tx.organization.findUnique({
+        where: { id: invitation.organizationId },
+        select: { id: true, name: true, slug: true },
+      });
+    });
+
+    this.logger.log(`Invitation accepted: ${invitation.email} to ${invitation.organizationId}`);
+    return { message: 'Invitation accepted', organization: result };
+  }
+
+  async declineInvitation(token: string) {
+    const invitation = await this.prisma.invitation.findUnique({
+      where: { token },
+    });
+
+    if (!invitation) {
+      throw new NotFoundException('Invitation not found');
+    }
+
+    if (invitation.status !== 'PENDING') {
+      throw new BadRequestException(`Invitation already ${invitation.status.toLowerCase()}`);
+    }
+
+    await this.prisma.invitation.update({
+      where: { id: invitation.id },
+      data: { status: 'DECLINED' },
+    });
+
+    this.logger.log(`Invitation declined: ${invitation.email}`);
+    return { message: 'Invitation declined' };
+  }
+
   /**
    * Get usage statistics for an organization's dashboard.
    *

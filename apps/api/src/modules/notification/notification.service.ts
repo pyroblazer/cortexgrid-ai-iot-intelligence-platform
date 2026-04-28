@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { UpdatePreferencesDto } from './dto/preferences.dto';
@@ -155,5 +155,22 @@ export class NotificationService {
     this.logger.debug(`Notification created: ${notification.id} for user ${params.userId}`);
 
     return notification;
+  }
+
+  async deleteOne(notificationId: string, userId: string) {
+    const notification = await this.prisma.notification.findUnique({
+      where: { id: notificationId },
+    });
+
+    if (!notification) {
+      throw new NotFoundException('Notification not found');
+    }
+
+    if (notification.userId !== userId) {
+      throw new ForbiddenException('You can only delete your own notifications');
+    }
+
+    await this.prisma.notification.delete({ where: { id: notificationId } });
+    return { message: 'Notification deleted' };
   }
 }

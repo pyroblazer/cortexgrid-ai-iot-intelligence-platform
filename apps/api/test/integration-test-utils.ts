@@ -1,10 +1,13 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import request from 'supertest';
 import { AppModule } from '../src/app.module';
 import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
 import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor';
+import { AuditInterceptor } from '../src/common/interceptors/audit.interceptor';
+import { AuditService } from '../src/modules/audit/audit.service';
 import { PrismaService } from '../src/common/prisma/prisma.service';
 
 export const TEST_USER = {
@@ -51,12 +54,23 @@ export async function createTestApp(): Promise<INestApplication> {
   app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
 
   await app.init();
+
+  // Register AuditInterceptor after init so we can resolve dependencies from DI
+  const reflector = app.get(Reflector);
+  const auditService = app.get(AuditService);
+  app.useGlobalInterceptors(
+    new LoggingInterceptor(),
+    new AuditInterceptor(reflector, auditService),
+    new TransformInterceptor(),
+  );
+
   return app;
 }
 
 export async function cleanupDatabase(app: INestApplication): Promise<void> {
   const prisma = app.get(PrismaService);
   const tableNames = [
+    'AuditLog',
     'Notification',
     'Alert',
     'AlertRule',

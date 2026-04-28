@@ -225,6 +225,7 @@ jobs:
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       MQTT_BROKER_URL: mqtt://localhost:1883
+      CORS_ORIGIN: "*"
       PORT: 3001
 
     steps:
@@ -304,6 +305,7 @@ jobs:
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
       PORT: 3001
+      MQTT_BROKER_URL: mqtt://localhost:1883
 
     steps:
       - name: Checkout repository
@@ -336,7 +338,7 @@ jobs:
         run: pnpm --filter @cortexgrid/api db:generate
 
       - name: Build API
-        run: cd apps/api && npx nest build
+        run: pnpm --filter @cortexgrid/api build
 
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
@@ -420,12 +422,33 @@ jobs:
           docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up -d \
             postgres redis mosquitto api web
           echo "Waiting for services to be healthy..."
-          sleep 30
+
+      - name: Wait for API to be ready
+        run: |
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "API is ready after ${i}s"
+              break
+            fi
+            echo "Attempt $i: API not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Wait for Web to be ready
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Web is ready after ${i}s"
+              break
+            fi
+            echo "Attempt $i: Web not ready, waiting..."
+            sleep 2
+          done
 
       - name: Verify services are running
         run: |
-          curl -sf http://localhost:3001/health || (echo "API not reachable" && docker compose logs api && exit 1)
-          curl -sf http://localhost:3000 || (echo "Web not reachable" && docker compose logs web && exit 1)
+          curl -sf http://localhost:3001/health || (echo "API not reachable" && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml logs api && exit 1)
+          curl -sf http://localhost:3000 || (echo "Web not reachable" && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml logs web && exit 1)
 
       - name: Run Playwright tests
         run: pnpm --filter @cortexgrid/web test:e2e

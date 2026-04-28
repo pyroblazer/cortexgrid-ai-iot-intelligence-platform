@@ -39,6 +39,7 @@ import * as mqtt from 'mqtt';
 import { TelemetryService } from '../telemetry.service';
 import { DeviceStatus } from '@prisma/client';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { validateMqttPayload } from '../../../common/utils/validate-mqtt-payload';
 
 /** Expected shape of an MQTT telemetry payload from a device. */
 interface MqttTelemetryPayload {
@@ -184,6 +185,13 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
       }
 
       const parsedPayload: MqttTelemetryPayload = JSON.parse(payload);
+
+      // Validate payload structure to prevent malformed data ingestion
+      const validation = validateMqttPayload(parsedPayload);
+      if (!validation.valid) {
+        this.logger.warn(`Invalid MQTT payload on ${topic}: ${validation.error}`);
+        return;
+      }
 
       // Some devices send their serial number instead of our internal device ID.
       // Look up the device by serial number to get our internal IDs.

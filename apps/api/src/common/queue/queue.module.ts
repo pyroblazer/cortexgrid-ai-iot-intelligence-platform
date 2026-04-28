@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { RetentionProcessor } from './processors/retention.processor';
+import { PrismaModule } from '../prisma/prisma.module';
 
 @Module({
   imports: [
@@ -20,8 +22,11 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
       { name: 'ai-queries' },
       { name: 'notification-delivery' },
       { name: 'billing-webhooks' },
+      { name: 'data-retention' },
     ),
+    PrismaModule,
   ],
+  providers: [RetentionProcessor],
   exports: [BullModule],
 })
 export class QueueModule {}

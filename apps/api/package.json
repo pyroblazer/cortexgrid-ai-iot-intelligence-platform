@@ -11,7 +11,7 @@
     "type-check": "tsc --noEmit",
     "test": "jest",
     "test:unit": "jest --testPathPattern='\\.unit\\.spec\\.ts$'",
-    "test:integration": "jest --testPathPattern='\\.integration\\.spec\\.ts$'",
+    "test:integration": "jest --runInBand --testPathPattern='\\.integration\\.spec\\.ts$'",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:cov": "jest --coverage",
     "db:generate": "prisma generate",

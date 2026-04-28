@@ -21,6 +21,7 @@ import { AlertService } from './alert.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateAlertRuleDto, UpdateAlertRuleDto, AcknowledgeAlertDto } from './dto/alert.dto';
+import { AuditAction } from '../../common/decorators/audit-action.decorator';
 
 @ApiTags('Alerts')
 @ApiBearerAuth('JWT-auth')
@@ -32,6 +33,7 @@ export class AlertController {
   // ── Alert Rules ────────────────────────────────────────────────────────────
 
   @Post('rules')
+  @AuditAction('alertRule.create', 'AlertRule')
   @ApiOperation({ summary: 'Create a new alert rule' })
   @ApiResponse({ status: 201, description: 'Alert rule created' })
   async createRule(
@@ -72,6 +74,7 @@ export class AlertController {
   }
 
   @Patch('rules/:id')
+  @AuditAction('alertRule.update', 'AlertRule')
   @ApiOperation({ summary: 'Update an alert rule' })
   @ApiResponse({ status: 200, description: 'Alert rule updated' })
   @ApiParam({ name: 'id', description: 'Alert rule ID' })
@@ -84,6 +87,7 @@ export class AlertController {
   }
 
   @Delete('rules/:id')
+  @AuditAction('alertRule.delete', 'AlertRule')
   @ApiOperation({ summary: 'Delete an alert rule' })
   @ApiResponse({ status: 200, description: 'Alert rule deleted' })
   @ApiParam({ name: 'id', description: 'Alert rule ID' })
@@ -133,6 +137,7 @@ export class AlertController {
   }
 
   @Patch(':id/acknowledge')
+  @AuditAction('alert.acknowledge', 'Alert')
   @ApiOperation({ summary: 'Acknowledge an alert' })
   @ApiResponse({ status: 200, description: 'Alert acknowledged' })
   @ApiParam({ name: 'id', description: 'Alert ID' })
@@ -151,6 +156,7 @@ export class AlertController {
   }
 
   @Patch(':id/resolve')
+  @AuditAction('alert.resolve', 'Alert')
   @ApiOperation({ summary: 'Resolve an alert' })
   @ApiResponse({ status: 200, description: 'Alert resolved' })
   @ApiParam({ name: 'id', description: 'Alert ID' })
