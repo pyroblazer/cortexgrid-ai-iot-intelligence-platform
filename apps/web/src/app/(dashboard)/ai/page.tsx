@@ -39,8 +39,6 @@ import {
   AlertTriangle,
   Thermometer,
   BarChart3,
-  Bot,
-  User,
   Loader2,
 } from "lucide-react";
 import {
@@ -54,7 +52,6 @@ import {
   ReferenceLine,
 } from "recharts";
 import { Button } from "@cortexgrid/ui/components/Button";
-import { Input } from "@cortexgrid/ui/components/Input";
 import {
   Card,
   CardContent,

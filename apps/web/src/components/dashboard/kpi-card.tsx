@@ -30,7 +30,7 @@
 
 import React from "react";
 import { ArrowUp, ArrowDown } from "lucide-react";
-import { cn } from "tailwind-merge";
+import { cn } from "@cortexgrid/ui";
 import { Card, CardContent } from "@cortexgrid/ui/components/Card";
 
 /** Props that configure what the KPI card displays */

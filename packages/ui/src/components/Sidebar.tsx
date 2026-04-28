@@ -68,7 +68,7 @@ function SidebarItemRow({ item, depth = 0, collapsed, activeItemId }: SidebarIte
         : "text-dark-600 dark:text-dark-400",
       depth > 0 && "ml-4 pl-3 text-xs"
     ),
-    "aria-current": isActive ? "page" : undefined,
+    "aria-current": isActive ? ("page" as const) : undefined,
     ...(item.href ? { href: item.href } : {}),
   };
 

@@ -179,17 +179,6 @@ export interface CreateWebhookDto {
 }
 
 /**
- * Namespace exporting all notification-related types.
+ * All notification-related types are exported directly from this module.
+ * Use `import { NotificationType, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace NotificationTypes {
-  export type {
-    NotificationPreference,
-    UpdateNotificationPreferenceDto,
-    Notification,
-    MarkNotificationsReadDto,
-    UnreadNotificationCount,
-    WebhookConfig,
-    CreateWebhookDto,
-  };
-  export { NotificationType, NotificationChannel };
-}

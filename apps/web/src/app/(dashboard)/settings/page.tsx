@@ -8,7 +8,6 @@ import {
   Shield,
   Bell,
   Mail,
-  User,
   Users,
   Building2,
   Link as LinkIcon,

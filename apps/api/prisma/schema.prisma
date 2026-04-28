@@ -87,6 +87,7 @@ model User {
   ownedOrgs      Organization[] @relation("OwnedOrganizations")
   alerts         Alert[]        @relation("AcknowledgedAlerts")
   notifications  Notification[]
+  invitations    Invitation[]
 }
 
 model Organization {

@@ -1,0 +1,3 @@
+{
+  "extends": ["@cortexgrid/eslint-config/next"]
+}

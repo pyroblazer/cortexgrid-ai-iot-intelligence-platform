@@ -146,19 +146,6 @@ export interface ChangePasswordDto {
 }
 
 /**
- * Namespace exporting all auth-related types.
+ * All auth-related types are exported directly from this module.
+ * Use `import { Role, JwtPayload, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace AuthTypes {
-  export type {
-    JwtPayload,
-    LoginDto,
-    RegisterDto,
-    TokenResponse,
-    AuthUser,
-    RefreshTokenDto,
-    ForgotPasswordDto,
-    ResetPasswordDto,
-    ChangePasswordDto,
-  };
-  export { Role };
-}

@@ -197,18 +197,6 @@ export interface AIConfig {
 }
 
 /**
- * Namespace exporting all AI-related types.
+ * All AI-related types are exported directly from this module.
+ * Use `import { AIQuery, AIResponse, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace AITypes {
-  export type {
-    AIQuery,
-    AIChatMessage,
-    AIResponse,
-    AIResponseType,
-    AnomalyDetectionResult,
-    AnomalyType,
-    TelemetrySummary,
-    TelemetryMetricSummary,
-    AIConfig,
-  };
-}

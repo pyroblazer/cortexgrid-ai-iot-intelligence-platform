@@ -132,16 +132,6 @@ export interface TelemetryStreamEvent {
 }
 
 /**
- * Namespace exporting all telemetry-related types.
+ * All telemetry-related types are exported directly from this module.
+ * Use `import { AggregationType, TimeRange, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace TelemetryTypes {
-  export type {
-    TimeRange,
-    TelemetryDataPoint,
-    TelemetryQuery,
-    TelemetryBucket,
-    TelemetryResponse,
-    TelemetryStreamEvent,
-  };
-  export { AggregationType };
-}

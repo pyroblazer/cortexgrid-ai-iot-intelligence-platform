@@ -14,12 +14,6 @@ import {
 import { Button } from "@cortexgrid/ui/components/Button";
 import { Badge } from "@cortexgrid/ui/components/Badge";
 import { Modal } from "@cortexgrid/ui/components/Modal";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@cortexgrid/ui/components/Card";
 import { DataTable, type Column } from "@cortexgrid/ui/components/DataTable";
 import type { AlertSeverity } from "@cortexgrid/types";
 

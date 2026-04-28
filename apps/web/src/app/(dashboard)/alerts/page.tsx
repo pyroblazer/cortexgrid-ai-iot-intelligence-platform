@@ -36,7 +36,6 @@ import {
   AlertTriangle,
   Bell,
   CheckCircle,
-  Clock,
   Filter,
   Search,
   ShieldAlert,
@@ -47,9 +46,6 @@ import { Input } from "@cortexgrid/ui/components/Input";
 import { Badge } from "@cortexgrid/ui/components/Badge";
 import {
   Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
 } from "@cortexgrid/ui/components/Card";
 import { DataTable, type Column } from "@cortexgrid/ui/components/DataTable";
 import type { AlertSeverity, AlertStatus } from "@cortexgrid/types";

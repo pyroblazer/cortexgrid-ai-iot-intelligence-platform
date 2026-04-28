@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import {
   gaussianRandom,
   clamp,
@@ -47,10 +46,10 @@ export const TemperatureSensor: DeviceProfile = {
     {
       name: 'temperature',
       unit: '°C',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(22, 5);
         const noise = gaussianRandom(0, 0.4);
-        const drift = (Date.now() - ctx.startTime) / (1000 * 60 * 60) * 0.01;
+        const drift = (Date.now() - _ctx.startTime) / (1000 * 60 * 60) * 0.01;
         const value = base + noise + drift;
         return parseFloat(clamp(value, 15, 35).toFixed(2));
       },
@@ -58,7 +57,7 @@ export const TemperatureSensor: DeviceProfile = {
     {
       name: 'humidity',
       unit: '%',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(55, -15);
         const noise = gaussianRandom(0, 3);
         const value = base + noise;
@@ -68,7 +67,7 @@ export const TemperatureSensor: DeviceProfile = {
     {
       name: 'pressure',
       unit: 'hPa',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(1010, 8);
         const noise = gaussianRandom(0, 2);
         const spike = randomSpike(0, 15, 0.02);
@@ -96,7 +95,7 @@ export const HumiditySensor: DeviceProfile = {
     {
       name: 'humidity',
       unit: '%',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(60, -20);
         const noise = gaussianRandom(0, 4);
         const spike = randomSpike(0, 10, 0.03);
@@ -107,9 +106,9 @@ export const HumiditySensor: DeviceProfile = {
     {
       name: 'dewPoint',
       unit: '°C',
-      generate: (ctx) => {
-        const humidity = ctx.previousValues['humidity'] ?? 60;
-        const temp = ctx.previousValues['temperature'] ?? 22;
+      generate: (_ctx) => {
+        const humidity = _ctx.previousValues['humidity'] ?? 60;
+        const temp = _ctx.previousValues['temperature'] ?? 22;
         // Magnus formula approximation
         const a = 17.27;
         const b = 237.7;
@@ -121,9 +120,9 @@ export const HumiditySensor: DeviceProfile = {
     {
       name: 'absoluteHumidity',
       unit: 'g/m³',
-      generate: (ctx) => {
-        const humidity = ctx.previousValues['humidity'] ?? 60;
-        const temp = ctx.previousValues['temperature'] ?? 22;
+      generate: (_ctx) => {
+        const humidity = _ctx.previousValues['humidity'] ?? 60;
+        const temp = _ctx.previousValues['temperature'] ?? 22;
         // Approximation: AH = (6.112 * e^(17.67*T/(T+243.5)) * RH * 2.1674) / (273.15+T)
         const e = Math.exp((17.67 * temp) / (temp + 243.5));
         const ah = (6.112 * e * humidity * 2.1674) / (273.15 + temp);
@@ -150,7 +149,7 @@ export const PressureSensor: DeviceProfile = {
     {
       name: 'pressure',
       unit: 'hPa',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(1013, 12);
         const noise = gaussianRandom(0, 3);
         const spike = randomSpike(0, 25, 0.015);
@@ -161,8 +160,8 @@ export const PressureSensor: DeviceProfile = {
     {
       name: 'altitude',
       unit: 'm',
-      generate: (ctx) => {
-        const pressure = ctx.previousValues['pressure'] ?? 1013;
+      generate: (_ctx) => {
+        const pressure = _ctx.previousValues['pressure'] ?? 1013;
         // Barometric formula: h = 44330 * (1 - (P/1013.25)^0.1903)
         const altitude = 44330 * (1 - Math.pow(pressure / 1013.25, 0.1903));
         return parseFloat(altitude.toFixed(1));
@@ -171,9 +170,9 @@ export const PressureSensor: DeviceProfile = {
     {
       name: 'pressureTrend',
       unit: '',
-      generate: (ctx) => {
-        const current = ctx.previousValues['pressure'] ?? 1013;
-        const previous = ctx.previousValues['pressure_prev'] ?? current;
+      generate: (_ctx) => {
+        const current = _ctx.previousValues['pressure'] ?? 1013;
+        const previous = _ctx.previousValues['pressure_prev'] ?? current;
         const diff = current - previous;
         if (diff > 0.5) return 'rising';
         if (diff < -0.5) return 'falling';
@@ -200,7 +199,7 @@ export const MotionDetector: DeviceProfile = {
     {
       name: 'motionDetected',
       unit: '',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         // ~30% chance of motion at any given reading
         return Math.random() < 0.3;
       },
@@ -208,8 +207,8 @@ export const MotionDetector: DeviceProfile = {
     {
       name: 'velocity',
       unit: 'm/s',
-      generate: (ctx) => {
-        const motionDetected = ctx.previousValues['motionDetected'] ?? 0;
+      generate: (_ctx) => {
+        const motionDetected = _ctx.previousValues['motionDetected'] ?? 0;
         if (motionDetected === 0) return 0;
         const base = randomInRange(0.5, 3.0);
         const noise = gaussianRandom(0, 0.2);
@@ -219,8 +218,8 @@ export const MotionDetector: DeviceProfile = {
     {
       name: 'acceleration',
       unit: 'm/s²',
-      generate: (ctx) => {
-        const motionDetected = ctx.previousValues['motionDetected'] ?? 0;
+      generate: (_ctx) => {
+        const motionDetected = _ctx.previousValues['motionDetected'] ?? 0;
         if (motionDetected === 0) return 0;
         const base = randomInRange(0.1, 2.0);
         const noise = gaussianRandom(0, 0.15);
@@ -230,8 +229,8 @@ export const MotionDetector: DeviceProfile = {
     {
       name: 'activityLevel',
       unit: '',
-      generate: (ctx) => {
-        const motionDetected = ctx.previousValues['motionDetected'] ?? 0;
+      generate: (_ctx) => {
+        const motionDetected = _ctx.previousValues['motionDetected'] ?? 0;
         if (!motionDetected) return 'idle';
         const r = Math.random();
         if (r < 0.4) return 'low';
@@ -260,7 +259,7 @@ export const PowerMeter: DeviceProfile = {
     {
       name: 'voltage',
       unit: 'V',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const base = dailyCycle(230, 3);
         const noise = gaussianRandom(0, 1.5);
         const spike = randomSpike(0, 8, 0.02);
@@ -271,7 +270,7 @@ export const PowerMeter: DeviceProfile = {
     {
       name: 'current',
       unit: 'A',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         // Current follows a daily usage pattern
         const hour = new Date().getHours();
         const dayFactor =
@@ -288,9 +287,9 @@ export const PowerMeter: DeviceProfile = {
     {
       name: 'power',
       unit: 'W',
-      generate: (ctx) => {
-        const voltage = ctx.previousValues['voltage'] ?? 230;
-        const current = ctx.previousValues['current'] ?? 5;
+      generate: (_ctx) => {
+        const voltage = _ctx.previousValues['voltage'] ?? 230;
+        const current = _ctx.previousValues['current'] ?? 5;
         const power = voltage * current;
         // Apply power factor of ~0.95
         const pf = 0.93 + Math.random() * 0.06;
@@ -300,10 +299,10 @@ export const PowerMeter: DeviceProfile = {
     {
       name: 'energy',
       unit: 'kWh',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         // Accumulated energy: increment based on power and interval
-        const power = ctx.previousValues['power'] ?? 1000;
-        const previousEnergy = ctx.previousValues['energy'] ?? 0;
+        const power = _ctx.previousValues['power'] ?? 1000;
+        const previousEnergy = _ctx.previousValues['energy'] ?? 0;
         const intervalHours = 5 / 3600000; // assuming 5s interval
         const increment = (power / 1000) * intervalHours;
         return parseFloat((previousEnergy + increment).toFixed(4));
@@ -338,7 +337,7 @@ export const GasSensor: DeviceProfile = {
     {
       name: 'co2',
       unit: 'ppm',
-      generate: (ctx) => {
+      generate: (_ctx) => {
         const hour = new Date().getHours();
         // CO2 higher during occupied hours
         const occupancyFactor =
@@ -375,10 +374,10 @@ export const GasSensor: DeviceProfile = {
     {
       name: 'airQualityIndex',
       unit: '',
-      generate: (ctx) => {
-        const co2 = ctx.previousValues['co2'] ?? 500;
-        const voc = ctx.previousValues['voc'] ?? 100;
-        const co = ctx.previousValues['co'] ?? 0.5;
+      generate: (_ctx) => {
+        const co2 = _ctx.previousValues['co2'] ?? 500;
+        const voc = _ctx.previousValues['voc'] ?? 100;
+        const co = _ctx.previousValues['co'] ?? 0.5;
         // Simple AQI approximation
         const co2Score = Math.min(100, ((co2 - 400) / 1600) * 100);
         const vocScore = Math.min(100, (voc / 1000) * 100);

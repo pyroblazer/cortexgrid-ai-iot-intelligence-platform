@@ -43,7 +43,7 @@ interface TimeRange {
 }
 
 /** A single detected anomaly point with its statistical deviation. */
-interface AnomalyPoint {
+export interface AnomalyPoint {
   timestamp: string;
   value: number;
   deviation: number;

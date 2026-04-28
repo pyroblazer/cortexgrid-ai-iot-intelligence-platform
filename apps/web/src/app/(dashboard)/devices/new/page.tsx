@@ -10,7 +10,6 @@ import { Button } from "@cortexgrid/ui/components/Button";
 import { Input } from "@cortexgrid/ui/components/Input";
 import { Card, CardContent, CardHeader, CardTitle } from "@cortexgrid/ui/components/Card";
 import { apiClient } from "@/lib/api-client";
-import type { DeviceType } from "@cortexgrid/types";
 
 const createDeviceSchema = z.object({
   name: z

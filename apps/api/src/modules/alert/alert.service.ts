@@ -448,7 +448,7 @@ export class AlertService {
         }
       } catch (error) {
         this.logger.error(
-          `Error evaluating rule ${rule.id}: ${error.message}`,
+          `Error evaluating rule ${rule.id}: ${(error as Error).message}`,
         );
       }
     }

@@ -199,18 +199,6 @@ export interface InvoiceLineItem {
 }
 
 /**
- * Namespace exporting all billing-related types.
+ * All billing-related types are exported directly from this module.
+ * Use `import { PlanType, SubscriptionStatus, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace BillingTypes {
-  export type {
-    PlanDetails,
-    CreateSubscriptionDto,
-    Subscription,
-    UsageRecord,
-    UsageResourceType,
-    UsageSummary,
-    Invoice,
-    InvoiceLineItem,
-  };
-  export { PlanType, SubscriptionStatus };
-}

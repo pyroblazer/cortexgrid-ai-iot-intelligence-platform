@@ -46,7 +46,7 @@ function DataTable<T>({
   loading = false,
   emptyMessage = "No data available",
   pageSize = 10,
-  pageSizeOptions,
+  pageSizeOptions: _pageSizeOptions,
   onPageChange,
   onSort,
   className,
@@ -79,8 +79,8 @@ function DataTable<T>({
       const aVal = (a as Record<string, unknown>)[sort.key];
       const bVal = (b as Record<string, unknown>)[sort.key];
       if (aVal === bVal) return 0;
-      if (aVal == null) return 1;
-      if (bVal == null) return -1;
+      if (aVal === null || aVal === undefined) return 1;
+      if (bVal === null || bVal === undefined) return -1;
       const cmp = aVal < bVal ? -1 : 1;
       return sort.direction === "asc" ? cmp : -cmp;
     });

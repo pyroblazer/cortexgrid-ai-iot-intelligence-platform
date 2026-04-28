@@ -34,7 +34,7 @@ import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Mail, Lock, User, Building2, Loader2 } from "lucide-react";
+import { Mail, Lock, User, Building2 } from "lucide-react";
 import { Button } from "@cortexgrid/ui/components/Button";
 import { Input } from "@cortexgrid/ui/components/Input";
 import { apiClient } from "@/lib/api-client";

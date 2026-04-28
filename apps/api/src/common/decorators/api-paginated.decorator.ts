@@ -13,10 +13,8 @@ export interface PaginatedDto<T> {
 }
 
 export const ApiPaginatedResponse = (model: any) => {
-  return ApiExtraModels(model, PaginatedMetaDto).apply(
-    null,
-    [] as any[],
-  ) && ApiOkResponse({
+  return ApiExtraModels(...[model, PaginatedMetaDto] as any[]) &&
+  ApiOkResponse({
     schema: {
       allOf: [
         {

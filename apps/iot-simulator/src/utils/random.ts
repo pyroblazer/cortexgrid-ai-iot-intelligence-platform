@@ -7,11 +7,10 @@
  */
 export function gaussianRandom(mean: number, stddev: number): number {
   let u1: number;
-  let u2: number;
   do {
     u1 = Math.random();
   } while (u1 === 0);
-  u2 = Math.random();
+  const u2 = Math.random();
 
   const mag = stddev * Math.sqrt(-2.0 * Math.log(u1));
   const z0 = mag * Math.cos(2.0 * Math.PI * u2);

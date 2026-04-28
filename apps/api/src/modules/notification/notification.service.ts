@@ -136,7 +136,7 @@ export class NotificationService {
         type: params.type as any,
         title: params.title,
         message: params.message,
-        metadata: params.metadata || {},
+        metadata: (params.metadata || {}) as any,
       },
     });
 

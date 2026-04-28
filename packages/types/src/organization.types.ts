@@ -2,8 +2,6 @@
 // CortexGrid Organization Types
 // ============================================================================
 
-import { Role } from "./auth.types";
-
 /**
  * Role assignment within an organization's membership.
  * Extends the base Role enum for membership-specific contexts.
@@ -212,20 +210,6 @@ export interface UpdateTeamDto {
 }
 
 /**
- * Namespace exporting all organization-related types.
+ * All organization-related types are exported directly from this module.
+ * Use `import { MembershipRole, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace OrganizationTypes {
-  export type {
-    CreateOrganizationDto,
-    UpdateOrganizationDto,
-    OrganizationResponse,
-    OrganizationMember,
-    OrganizationInvitation,
-    InviteMemberDto,
-    UpdateMemberRoleDto,
-    Team,
-    CreateTeamDto,
-    UpdateTeamDto,
-  };
-  export { MembershipRole, InvitationStatus };
-}

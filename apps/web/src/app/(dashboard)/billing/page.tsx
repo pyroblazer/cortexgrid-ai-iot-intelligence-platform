@@ -33,10 +33,8 @@
 
 import { useMemo } from "react";
 import {
-  CreditCard,
   Download,
   ArrowUpRight,
-  Check,
 } from "lucide-react";
 import {
   BarChart,
@@ -238,53 +236,59 @@ export default function BillingPage() {
         </h2>
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <PlanCard
-            planId="FREE"
-            name="Free"
-            price={0}
-            yearlyPrice={0}
-            features={[
-              "Up to 5 IoT devices",
-              "7-day data retention",
-              "Basic telemetry dashboard",
-              "Email alerts",
-              "Community support",
-            ]}
+            plan={{
+              type: "FREE",
+              name: "Free",
+              monthlyPrice: 0,
+              features: [
+                "Up to 5 IoT devices",
+                "7-day data retention",
+                "Basic telemetry dashboard",
+                "Email alerts",
+                "Community support",
+              ],
+              limits: { devices: 5, teamMembers: 2, aiQueries: 50, storageMb: 100 },
+            }}
             isCurrentPlan={CURRENT_PLAN === "FREE"}
             onSelect={() => {}}
           />
           <PlanCard
-            planId="PRO"
-            name="Professional"
-            price={29}
-            yearlyPrice={290}
-            features={[
-              "Up to 100 IoT devices",
-              "90-day data retention",
-              "Advanced analytics dashboard",
-              "Custom alert rules",
-              "MQTT & HTTP ingestion",
-              "Webhook integrations",
-              "Priority email support",
-            ]}
-            isPopular
+            plan={{
+              type: "PRO",
+              name: "Professional",
+              monthlyPrice: 29,
+              features: [
+                "Up to 100 IoT devices",
+                "90-day data retention",
+                "Advanced analytics dashboard",
+                "Custom alert rules",
+                "MQTT & HTTP ingestion",
+                "Webhook integrations",
+                "Priority email support",
+              ],
+              limits: { devices: 100, teamMembers: 25, aiQueries: 5000, storageMb: 10000 },
+            }}
+            isRecommended
             isCurrentPlan={CURRENT_PLAN === "PRO"}
             onSelect={() => {}}
           />
           <PlanCard
-            planId="ENTERPRISE"
-            name="Enterprise"
-            price={99}
-            yearlyPrice={990}
-            features={[
-              "Unlimited IoT devices",
-              "Unlimited data retention",
-              "AI-powered anomaly detection",
-              "Custom ML model deployment",
-              "Dedicated MQTT broker",
-              "SSO & RBAC",
-              "SLA-backed uptime guarantee",
-              "Dedicated account manager",
-            ]}
+            plan={{
+              type: "ENTERPRISE",
+              name: "Enterprise",
+              monthlyPrice: 99,
+              features: [
+                "Unlimited IoT devices",
+                "Unlimited data retention",
+                "AI-powered anomaly detection",
+                "Custom ML model deployment",
+                "Dedicated MQTT broker",
+                "SSO & RBAC",
+                "SLA-backed uptime guarantee",
+                "Dedicated account manager",
+              ],
+              limits: { devices: Infinity, teamMembers: Infinity, aiQueries: Infinity, storageMb: Infinity },
+            }}
             isCurrentPlan={CURRENT_PLAN === "ENTERPRISE"}
             onSelect={() => {}}
           />

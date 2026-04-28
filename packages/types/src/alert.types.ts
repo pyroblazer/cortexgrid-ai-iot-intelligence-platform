@@ -189,17 +189,6 @@ export interface AlertStats {
 }
 
 /**
- * Namespace exporting all alert-related types.
+ * All alert-related types are exported directly from this module.
+ * Use `import { AlertSeverity, AlertStatus, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace AlertTypes {
-  export type {
-    AlertCondition,
-    AlertRule,
-    CreateAlertRuleDto,
-    UpdateAlertRuleDto,
-    Alert,
-    UpdateAlertDto,
-    AlertStats,
-  };
-  export { AlertSeverity, AlertStatus };
-}
