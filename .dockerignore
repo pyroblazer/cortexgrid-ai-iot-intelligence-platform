@@ -7,6 +7,7 @@ dist
 .next
 out
 build
+*.tsbuildinfo
 
 # Environment
 .env
@@ -25,17 +26,16 @@ Thumbs.db
 
 # Turbo
 .turbo
-.vercel
 
 # Testing
 coverage
 test-results
 playwright-report
 
-# Prisma
+# Prisma data files
 apps/api/prisma/*.db
 
-# Docker
+# Docker data
 docker/data
 
 # Logs
@@ -43,8 +43,12 @@ docker/data
 npm-debug.log*
 pnpm-debug.log*
 
-# Cache
-.cache
+# Git
+.git
+.gitignore
 
-# TypeScript incremental build cache
-*.tsbuildinfo
+# CI
+.github
+
+# Docs
+*.md
