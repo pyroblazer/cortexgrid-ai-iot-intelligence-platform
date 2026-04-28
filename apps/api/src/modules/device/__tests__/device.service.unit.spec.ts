@@ -1,5 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { DeviceService } from '../device.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
@@ -79,12 +79,11 @@ describe('DeviceService', () => {
 
     it('should create a device within plan limits', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue({
-        id: 'org_001',
-        plan: 'PRO',
         deviceLimit: 100,
-        _count: { devices: 10 },
+        plan: 'PRO',
       });
-      mockPrisma.device.findFirst.mockResolvedValue(null);
+      mockPrisma.device.count.mockResolvedValue(10);
+      mockPrisma.device.findUnique.mockResolvedValue(null);
       mockPrisma.device.create.mockResolvedValue(mockDevice);
 
       const result = await service.create('org_001', createDto);
@@ -95,25 +94,23 @@ describe('DeviceService', () => {
 
     it('should throw BadRequestException if device limit reached', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue({
-        id: 'org_001',
-        plan: 'FREE',
         deviceLimit: 5,
-        _count: { devices: 5 },
+        plan: 'FREE',
       });
+      mockPrisma.device.count.mockResolvedValue(5);
 
       await expect(service.create('org_001', createDto)).rejects.toThrow(
         BadRequestException,
       );
     });
 
-    it('should throw ConflictException for duplicate serial number', async () => {
+    it('should throw BadRequestException for duplicate serial number', async () => {
       mockPrisma.organization.findUnique.mockResolvedValue({
-        id: 'org_001',
-        plan: 'PRO',
         deviceLimit: 100,
-        _count: { devices: 10 },
+        plan: 'PRO',
       });
-      mockPrisma.device.findFirst.mockResolvedValue(mockDevice);
+      mockPrisma.device.count.mockResolvedValue(10);
+      mockPrisma.device.findUnique.mockResolvedValue(mockDevice);
 
       await expect(service.create('org_001', createDto)).rejects.toThrow();
     });
@@ -124,7 +121,7 @@ describe('DeviceService', () => {
       mockPrisma.device.findMany.mockResolvedValue([mockDevice]);
       mockPrisma.device.count.mockResolvedValue(1);
 
-      const result = await service.findAll('org_001', { page: 1, pageSize: 20 });
+      const result = await service.findAll('org_001', { page: 1, limit: 20 });
 
       expect(result.data).toHaveLength(1);
       expect(result.meta.total).toBe(1);
@@ -134,7 +131,7 @@ describe('DeviceService', () => {
       mockPrisma.device.findMany.mockResolvedValue([mockDevice]);
       mockPrisma.device.count.mockResolvedValue(1);
 
-      await service.findAll('org_001', { page: 1, pageSize: 20, type: 'SENSOR' });
+      await service.findAll('org_001', { page: 1, limit: 20, type: 'SENSOR' });
 
       expect(mockPrisma.device.findMany).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -149,17 +146,17 @@ describe('DeviceService', () => {
 
   describe('findOne', () => {
     it('should return a device', async () => {
-      mockPrisma.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrisma.device.findFirst.mockResolvedValue(mockDevice);
 
-      const result = await service.findOne('dev_001', 'org_001');
+      const result = await service.findOne('org_001', 'dev_001');
 
       expect(result.id).toBe('dev_001');
     });
 
     it('should throw NotFoundException for missing device', async () => {
-      mockPrisma.device.findUnique.mockResolvedValue(null);
+      mockPrisma.device.findFirst.mockResolvedValue(null);
 
-      await expect(service.findOne('nonexistent', 'org_001')).rejects.toThrow(
+      await expect(service.findOne('org_001', 'nonexistent')).rejects.toThrow(
         NotFoundException,
       );
     });
@@ -167,13 +164,13 @@ describe('DeviceService', () => {
 
   describe('update', () => {
     it('should update device fields', async () => {
-      mockPrisma.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrisma.device.findFirst.mockResolvedValue(mockDevice);
       mockPrisma.device.update.mockResolvedValue({
         ...mockDevice,
         name: 'Updated Sensor',
       });
 
-      const result = await service.update('dev_001', 'org_001', { name: 'Updated Sensor' });
+      const result = await service.update('org_001', 'dev_001', { name: 'Updated Sensor' });
 
       expect(result.name).toBe('Updated Sensor');
     });
@@ -181,10 +178,10 @@ describe('DeviceService', () => {
 
   describe('remove', () => {
     it('should soft delete a device', async () => {
-      mockPrisma.device.findUnique.mockResolvedValue(mockDevice);
+      mockPrisma.device.findFirst.mockResolvedValue(mockDevice);
       mockPrisma.device.update.mockResolvedValue({ ...mockDevice, isActive: false });
 
-      await service.remove('dev_001', 'org_001');
+      await service.remove('org_001', 'dev_001');
 
       expect(mockPrisma.device.update).toHaveBeenCalledWith(
         expect.objectContaining({

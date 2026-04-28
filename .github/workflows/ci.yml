@@ -13,11 +13,9 @@ concurrency:
 env:
   NODE_VERSION: "20"
   PNPM_VERSION: "9.12.0"
-  REGISTRY: ghcr.io
-  IMAGE_PREFIX: ${{ github.repository }}
 
 jobs:
-  # ─── Setup & Cache ──────────────────────────────────────────────────────
+  # ─── Setup ───────────────────────────────────────────────────────────────
   setup:
     name: Setup
     runs-on: ubuntu-latest
@@ -89,7 +87,7 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore pnpm store
+      - name: Restore node_modules cache
         uses: actions/cache@v4
         with:
           path: |
@@ -124,7 +122,7 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore cache
+      - name: Restore node_modules cache
         uses: actions/cache@v4
         with:
           path: |
@@ -136,6 +134,9 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
 
       - name: Run type check
         run: pnpm type-check
@@ -159,7 +160,7 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore cache
+      - name: Restore node_modules cache
         uses: actions/cache@v4
         with:
           path: |
@@ -236,7 +237,7 @@ jobs:
         with:
           version: ${{ env.PNPM_VERSION }}
 
-      - name: Restore cache
+      - name: Restore node_modules cache
         uses: actions/cache@v4
         with:
           path: |
@@ -260,7 +261,7 @@ jobs:
       - name: Run integration tests
         run: pnpm test:integration
 
-  # ─── API Tests (Newman / Postman) ──────────────────────────────────────
+        # ─── API Tests (Newman / Postman) ──────────────────────────────────────
   api-tests:
     name: API Tests (Newman)
     needs: integration-tests
@@ -297,6 +298,7 @@ jobs:
       REDIS_PORT: 6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
+      CORS_ORIGIN: "*"
       PORT: 3001
 
     steps:
@@ -329,24 +331,27 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @cortexgrid/api db:generate
 
+      - name: Build API
+        run: cd apps/api && npx nest build
+
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
-
-      - name: Seed database
-        run: pnpm --filter @cortexgrid/api db:seed
 
       - name: Start API server
         run: |
           cd apps/api && node dist/main.js &
           echo "Waiting for API server to start..."
           for i in $(seq 1 30); do
-            if curl -sf http://localhost:3001/api/v1/health > /dev/null 2>&1; then
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
               echo "API server is ready"
               break
             fi
             echo "Attempt $i: API not ready, waiting..."
             sleep 2
           done
+
+      - name: Verify API is healthy
+        run: curl -sf http://localhost:3001/health
 
       - name: Install Newman
         run: npm install -g newman newman-reporter-htmlextra
@@ -415,13 +420,14 @@ jobs:
 
       - name: Verify services are running
         run: |
-          curl -sf http://localhost:3001/api/v1/health || (echo "API not reachable" && docker compose logs api && exit 1)
+          curl -sf http://localhost:3001/health || (echo "API not reachable" && docker compose logs api && exit 1)
           curl -sf http://localhost:3000 || (echo "Web not reachable" && docker compose logs web && exit 1)
 
       - name: Run Playwright tests
         run: pnpm --filter @cortexgrid/web test:e2e
         env:
-          PLAYWRIGHT_BASE_URL: http://localhost:3000
+          BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:3001
           CI: true
 
       - name: Upload Playwright report
@@ -437,11 +443,10 @@ jobs:
       - name: Stop Docker Compose services
         if: always()
         run: docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v
-
   # ─── Build & Push Docker Images ────────────────────────────────────────
   build:
     name: Build & Push Images
-    needs: [e2e-tests, api-tests]
+    needs: [lint, type-check, unit-tests]
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -457,7 +462,7 @@ jobs:
       - name: Log in to Container Registry
         uses: docker/login-action@v3
         with:
-          registry: ${{ env.REGISTRY }}
+          registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
@@ -465,7 +470,7 @@ jobs:
         id: meta-api
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/api
+          images: ghcr.io/${{ github.repository }}/api
           tags: |
             type=ref,event=branch
             type=sha,prefix=
@@ -486,7 +491,7 @@ jobs:
         id: meta-web
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/web
+          images: ghcr.io/${{ github.repository }}/web
           tags: |
             type=ref,event=branch
             type=sha,prefix=
@@ -507,7 +512,7 @@ jobs:
         id: meta-iot
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_PREFIX }}/iot-simulator
+          images: ghcr.io/${{ github.repository }}/iot-simulator
           tags: |
             type=ref,event=branch
             type=sha,prefix=
@@ -575,7 +580,7 @@ jobs:
 
             echo "Verifying deployment..."
             sleep 10
-            curl -sf http://localhost:3001/api/v1/health || (echo "Health check failed!" && exit 1)
+            curl -sf http://localhost:3001/health || (echo "Health check failed!" && exit 1)
 
             echo "Cleaning up old images..."
             docker image prune -f

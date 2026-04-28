@@ -174,7 +174,7 @@ export function TelemetryChart({
         // For each metric, generate a new value that's close to the previous one
         // (this makes the line chart look smooth rather than jumping randomly)
         metrics.forEach((metric) => {
-          const last = prev[prev.length - 1]?.[metric] ?? 50;
+          const last = Number(prev[prev.length - 1]?.[metric] ?? 50);
           // Add random noise of +/- 2 around the last value
           newPoint[metric] = parseFloat(
             (last + (Math.random() - 0.5) * 4).toFixed(2)

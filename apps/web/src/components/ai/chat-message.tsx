@@ -1,5 +1,5 @@
 import { Bot, User } from "lucide-react";
-import { cn } from "tailwind-merge";
+import { cn } from "@cortexgrid/ui";
 
 interface ChatMessageProps {
   role: "user" | "assistant";

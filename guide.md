@@ -6,7 +6,7 @@ Run these commands in order to get CortexGrid running as fast as possible.
 
 ```bash
 # Ensure pnpm is installed
-npm install -g pnpm@9
+npm install -g pnpm@9 
 
 # Install all dependencies
 pnpm install

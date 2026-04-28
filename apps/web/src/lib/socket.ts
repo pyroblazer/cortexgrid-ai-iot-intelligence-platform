@@ -89,11 +89,12 @@ export function getSocket(): Socket {
 
     // Log connection events for debugging
     socket.on("connect", () => {
-      console.log("[Socket] Connected:", socket?.id);
+      // Connected successfully
     });
 
     socket.on("disconnect", (reason) => {
-      console.log("[Socket] Disconnected:", reason);
+      // Disconnected: reason
+      void reason;
     });
 
     socket.on("connect_error", (error) => {

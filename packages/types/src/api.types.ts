@@ -172,19 +172,6 @@ export interface BulkOperationError {
 }
 
 /**
- * Namespace exporting all API-related types.
+ * All API-related types are exported directly from this module.
+ * Use `import { ApiResponse, PaginatedResponse, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace ApiTypes {
-  export type {
-    ApiResponse,
-    PaginatedResponse,
-    PaginationMeta,
-    PaginationParams,
-    ApiError,
-    ApiErrorDetail,
-    HealthCheckResponse,
-    FilterParams,
-    BulkOperationResult,
-    BulkOperationError,
-  };
-}

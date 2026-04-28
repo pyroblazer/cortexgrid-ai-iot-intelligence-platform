@@ -159,15 +159,6 @@ export interface DeviceStats {
 }
 
 /**
- * Namespace exporting all device-related types.
+ * All device-related types are exported directly from this module.
+ * Use `import { DeviceStatus, DeviceType, ... } from "@cortexgrid/types"` to access them.
  */
-export namespace DeviceTypes {
-  export type {
-    DeviceProfile,
-    CreateDeviceDto,
-    UpdateDeviceDto,
-    DeviceResponse,
-    DeviceStats,
-  };
-  export { DeviceStatus, DeviceType };
-}

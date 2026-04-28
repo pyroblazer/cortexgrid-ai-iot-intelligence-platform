@@ -447,8 +447,8 @@ export class TelemetryService {
     }
 
     return {
-      startTime: startTime.toISOString(),
-      endTime: endTime.toISOString(),
+      startTime,
+      endTime,
       count: records.length,
       avg,
       min,

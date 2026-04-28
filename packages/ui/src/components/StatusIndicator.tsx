@@ -43,7 +43,7 @@ const StatusIndicator = forwardRef<HTMLSpanElement, StatusIndicatorProps>(
     ref
   ) => {
     const defaultLabel =
-      status?.charAt(0).toUpperCase() + status?.slice(1) ?? "Offline";
+      (status ? status.charAt(0).toUpperCase() + status.slice(1) : null) ?? "Offline";
 
     return (
       <span

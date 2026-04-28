@@ -17,8 +17,11 @@
     "paths": {
       "@/*": ["./src/*"],
       "@cortexgrid/ui": ["../../packages/ui/src"],
+      "@cortexgrid/ui/*": ["../../packages/ui/src/*"],
       "@cortexgrid/types": ["../../packages/types/src"],
-      "@cortexgrid/config": ["../../packages/config/src"]
+      "@cortexgrid/types/*": ["../../packages/types/src/*"],
+      "@cortexgrid/config": ["../../packages/config/src"],
+      "@cortexgrid/config/*": ["../../packages/config/src/*"]
     },
     "forceConsistentCasingInFileNames": true,
     "noUnusedLocals": true,

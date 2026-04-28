@@ -3,8 +3,8 @@
 // ============================================================================
 
 // Auth types
-export {
-  Role,
+export { Role } from "./auth.types";
+export type {
   JwtPayload,
   LoginDto,
   RegisterDto,
@@ -14,37 +14,32 @@ export {
   ForgotPasswordDto,
   ResetPasswordDto,
   ChangePasswordDto,
-  AuthTypes,
 } from "./auth.types";
 
 // Device types
-export {
-  DeviceStatus,
-  DeviceType,
+export { DeviceStatus, DeviceType } from "./device.types";
+export type {
   DeviceProfile,
   CreateDeviceDto,
   UpdateDeviceDto,
   DeviceResponse,
   DeviceStats,
-  DeviceTypes,
 } from "./device.types";
 
 // Telemetry types
-export {
-  AggregationType,
+export { AggregationType } from "./telemetry.types";
+export type {
   TimeRange,
   TelemetryDataPoint,
   TelemetryQuery,
   TelemetryBucket,
   TelemetryResponse,
   TelemetryStreamEvent,
-  TelemetryTypes,
 } from "./telemetry.types";
 
 // Organization types
-export {
-  MembershipRole,
-  InvitationStatus,
+export { MembershipRole, InvitationStatus } from "./organization.types";
+export type {
   CreateOrganizationDto,
   UpdateOrganizationDto,
   OrganizationResponse,
@@ -55,13 +50,11 @@ export {
   Team,
   CreateTeamDto,
   UpdateTeamDto,
-  OrganizationTypes,
 } from "./organization.types";
 
 // Alert types
-export {
-  AlertSeverity,
-  AlertStatus,
+export { AlertSeverity, AlertStatus } from "./alert.types";
+export type {
   AlertCondition,
   AlertRule,
   CreateAlertRuleDto,
@@ -69,13 +62,11 @@ export {
   Alert,
   UpdateAlertDto,
   AlertStats,
-  AlertTypes,
 } from "./alert.types";
 
 // Billing types
-export {
-  PlanType,
-  SubscriptionStatus,
+export { PlanType, SubscriptionStatus } from "./billing.types";
+export type {
   PlanDetails,
   CreateSubscriptionDto,
   Subscription,
@@ -84,13 +75,11 @@ export {
   UsageSummary,
   Invoice,
   InvoiceLineItem,
-  BillingTypes,
 } from "./billing.types";
 
 // Notification types
-export {
-  NotificationType,
-  NotificationChannel,
+export { NotificationType, NotificationChannel } from "./notification.types";
+export type {
   NotificationPreference,
   UpdateNotificationPreferenceDto,
   Notification,
@@ -98,11 +87,10 @@ export {
   UnreadNotificationCount,
   WebhookConfig,
   CreateWebhookDto,
-  NotificationTypes,
 } from "./notification.types";
 
 // AI types
-export {
+export type {
   AIQuery,
   AIChatMessage,
   AIResponse,
@@ -112,11 +100,10 @@ export {
   TelemetrySummary,
   TelemetryMetricSummary,
   AIConfig,
-  AITypes,
 } from "./ai.types";
 
 // API types
-export {
+export type {
   ApiResponse,
   PaginatedResponse,
   PaginationMeta,
@@ -127,5 +114,4 @@ export {
   FilterParams,
   BulkOperationResult,
   BulkOperationError,
-  ApiTypes,
 } from "./api.types";

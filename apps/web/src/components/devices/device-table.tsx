@@ -31,7 +31,7 @@
 
 import { useMemo } from "react";
 import { formatDistanceToNow } from "date-fns";
-import { MoreHorizontal, Pencil, Trash2, Eye } from "lucide-react";
+import { Pencil, Trash2, Eye } from "lucide-react";
 import { Badge } from "@cortexgrid/ui/components/Badge";
 import { StatusIndicator } from "@cortexgrid/ui/components/StatusIndicator";
 import { DataTable, type Column } from "@cortexgrid/ui/components/DataTable";

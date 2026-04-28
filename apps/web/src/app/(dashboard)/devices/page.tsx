@@ -37,8 +37,6 @@ import {
 } from "lucide-react";
 import { Button } from "@cortexgrid/ui/components/Button";
 import { Input } from "@cortexgrid/ui/components/Input";
-import { Badge } from "@cortexgrid/ui/components/Badge";
-import { StatusIndicator } from "@cortexgrid/ui/components/StatusIndicator";
 import { DeviceTable } from "@/components/devices/device-table";
 import type { DeviceResponse, DeviceStatus, DeviceType } from "@cortexgrid/types";
 

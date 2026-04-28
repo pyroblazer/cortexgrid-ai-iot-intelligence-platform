@@ -131,7 +131,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     topics.forEach((topic) => {
       // QoS 1: "At least once" delivery. The broker ensures we receive
       // every message, even if it has to resend. More reliable than QoS 0.
-      this.client.subscribe(topic, { qos: 1 }, (err) => {
+      this.client!.subscribe(topic, { qos: 1 }, (err) => {
         if (err) {
           this.logger.error(`Failed to subscribe to ${topic}`, err.message);
         } else {
@@ -246,7 +246,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
     } catch (error) {
       // Log errors but don't crash - we need to keep processing other messages.
       this.logger.error(
-        `Error processing MQTT message on ${topic}: ${error.message}`,
+        `Error processing MQTT message on ${topic}: ${(error as Error).message}`,
       );
     }
   }
@@ -275,7 +275,7 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
 
     // Wrap the publish callback in a Promise for async/await usage.
     return new Promise((resolve, reject) => {
-      this.client.publish(topic, message, { qos: 1 }, (err) => {
+      this.client!.publish(topic, message, { qos: 1 }, (err) => {
         if (err) {
           this.logger.error(`Failed to publish to ${topic}`, err.message);
           reject(err);
