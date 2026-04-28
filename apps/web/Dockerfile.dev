@@ -5,14 +5,20 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/web/package.json apps/web/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY packages/types/package.json packages/types/
+COPY packages/ui/package.json packages/ui/
+COPY packages/config/package.json packages/config/
 
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY apps/web ./apps/web
+COPY packages ./packages
 
 EXPOSE 3000 9229
 
 ENV NODE_ENV=development
 
-CMD ["pnpm", "run", "dev"]
+CMD ["sh", "-c", "cd apps/web && pnpm run dev"]

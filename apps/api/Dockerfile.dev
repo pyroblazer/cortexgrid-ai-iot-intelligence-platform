@@ -5,17 +5,23 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
-COPY prisma ./prisma/
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/api/package.json apps/api/
+COPY apps/api/prisma ./apps/api/prisma/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY packages/types/package.json packages/types/
+COPY packages/ui/package.json packages/ui/
+COPY packages/config/package.json packages/config/
 
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY apps/api ./apps/api
+COPY packages ./packages
 
-RUN npx prisma generate
+RUN cd apps/api && npx prisma generate
 
 EXPOSE 3001 9229
 
 ENV NODE_ENV=development
 
-CMD ["pnpm", "run", "dev"]
+CMD ["sh", "-c", "cd apps/api && pnpm run dev"]

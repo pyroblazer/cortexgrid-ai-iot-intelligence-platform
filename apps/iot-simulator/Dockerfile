@@ -5,7 +5,12 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/iot-simulator/package.json apps/iot-simulator/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY packages/types/package.json packages/types/
+COPY packages/ui/package.json packages/ui/
+COPY packages/config/package.json packages/config/
 
 RUN pnpm install --frozen-lockfile --prod=false
 
@@ -17,9 +22,12 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
-COPY . .
+COPY --from=deps /app/apps/iot-simulator/node_modules ./apps/iot-simulator/node_modules
+COPY --from=deps /app/packages ./packages
+COPY apps/iot-simulator ./apps/iot-simulator
+COPY packages ./packages
 
-RUN pnpm build
+RUN cd apps/iot-simulator && pnpm build
 
 # Prune dev dependencies for production
 RUN pnpm install --frozen-lockfile --prod
@@ -34,9 +42,9 @@ WORKDIR /app
 RUN addgroup -g 1001 -S appgroup && \
     adduser -S appuser -u 1001 -G appgroup
 
-COPY --from=build --chown=appuser:appgroup /app/dist ./dist
-COPY --from=build --chown=appuser:appgroup /app/node_modules ./node_modules
-COPY --from=build --chown=appuser:appgroup /app/package.json ./
+COPY --from=build --chown=appuser:appgroup /app/apps/iot-simulator/dist ./dist
+COPY --from=build --chown=appuser:appgroup /app/apps/iot-simulator/node_modules ./node_modules
+COPY --from=build --chown=appuser:appgroup /app/apps/iot-simulator/package.json ./
 
 USER appuser
 

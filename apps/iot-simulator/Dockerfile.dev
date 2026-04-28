@@ -5,12 +5,18 @@ RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml* ./
+COPY pnpm-lock.yaml pnpm-workspace.yaml package.json ./
+COPY apps/iot-simulator/package.json apps/iot-simulator/
+COPY packages/eslint-config/package.json packages/eslint-config/
+COPY packages/types/package.json packages/types/
+COPY packages/ui/package.json packages/ui/
+COPY packages/config/package.json packages/config/
 
 RUN pnpm install --frozen-lockfile
 
-COPY . .
+COPY apps/iot-simulator ./apps/iot-simulator
+COPY packages ./packages
 
 ENV NODE_ENV=development
 
-CMD ["pnpm", "run", "dev"]
+CMD ["sh", "-c", "cd apps/iot-simulator && pnpm run dev"]
