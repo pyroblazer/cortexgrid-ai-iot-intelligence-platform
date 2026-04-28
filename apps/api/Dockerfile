@@ -24,14 +24,12 @@ WORKDIR /app
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/api/node_modules ./apps/api/node_modules
+COPY --from=deps /app/apps/api/prisma ./apps/api/prisma
 COPY --from=deps /app/packages ./packages
 COPY apps/api ./apps/api
 COPY packages ./packages
 
 RUN cd apps/api && npx prisma generate && npx nest build
-
-# Prune dev dependencies for production
-RUN pnpm install --frozen-lockfile --prod
 
 # ─── Stage 3: Production ──────────────────────────────────────────────────
 FROM node:20-alpine AS prod

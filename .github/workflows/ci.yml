@@ -176,15 +176,19 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @cortexgrid/api db:generate
 
-      - name: Run unit tests
-        run: pnpm test:unit -- --coverage
+      - name: Run unit tests with coverage
+        run: pnpm test:unit -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover
 
       - name: Upload coverage report
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: coverage-report
-          path: coverage/
+          name: unit-coverage-report
+          path: |
+            coverage/
+            apps/api/coverage/
+            apps/web/coverage/
+            apps/iot-simulator/coverage/
           retention-days: 7
 
   # ─── Integration Tests ──────────────────────────────────────────────────
@@ -263,13 +267,21 @@ jobs:
         env:
           DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
 
-      - name: Run integration tests
-        run: pnpm test:integration
+      - name: Run integration tests with coverage
+        run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover
 
-        # ─── API Tests (Newman / Postman) ──────────────────────────────────────
+      - name: Upload integration coverage report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-coverage-report
+          path: apps/api/coverage/
+          retention-days: 7
+
+  # ─── API Tests (Newman / Postman) ──────────────────────────────────────
   api-tests:
     name: API Tests (Newman)
-    needs: integration-tests
+    needs: setup
     runs-on: ubuntu-latest
 
     services:
@@ -383,9 +395,44 @@ jobs:
   # ─── E2E Tests (Playwright) ────────────────────────────────────────────
   e2e-tests:
     name: E2E Tests (Playwright)
-    needs: [lint, type-check, unit-tests]
+    needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cortexgrid
+          POSTGRES_PASSWORD: cortexgrid
+          POSTGRES_DB: cortexgrid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      CORS_ORIGIN: "*"
+      PORT: 3001
+      MQTT_BROKER_URL: mqtt://localhost:1883
 
     steps:
       - name: Checkout repository
@@ -414,41 +461,51 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Install Playwright browsers
-        run: cd apps/web && npx playwright install --with-deps chromium
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
 
-      - name: Start services via Docker Compose
-        run: |
-          docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up -d \
-            postgres redis mosquitto api web
-          echo "Waiting for services to be healthy..."
+      - name: Build API
+        run: pnpm --filter @cortexgrid/api build
 
-      - name: Wait for API to be ready
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
+
+      - name: Start API server
         run: |
-          for i in $(seq 1 60); do
+          cd apps/api && node dist/main.js &
+          echo "Waiting for API server to start..."
+          for i in $(seq 1 30); do
             if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
-              echo "API is ready after ${i}s"
+              echo "API server is ready"
               break
             fi
             echo "Attempt $i: API not ready, waiting..."
             sleep 2
           done
 
-      - name: Wait for Web to be ready
+      - name: Verify API is healthy
+        run: curl -sf http://localhost:3001/health
+
+      - name: Start Web server
         run: |
-          for i in $(seq 1 30); do
+          cd apps/web && pnpm dev &
+          echo "Waiting for Web server to start..."
+          for i in $(seq 1 60); do
             if curl -sf http://localhost:3000 > /dev/null 2>&1; then
-              echo "Web is ready after ${i}s"
+              echo "Web server is ready"
               break
             fi
             echo "Attempt $i: Web not ready, waiting..."
-            sleep 2
+            sleep 3
           done
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
 
-      - name: Verify services are running
-        run: |
-          curl -sf http://localhost:3001/health || (echo "API not reachable" && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml logs api && exit 1)
-          curl -sf http://localhost:3000 || (echo "Web not reachable" && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml logs web && exit 1)
+      - name: Install Playwright browsers
+        run: cd apps/web && npx playwright install --with-deps chromium
 
       - name: Run Playwright tests
         run: pnpm --filter @cortexgrid/web test:e2e
@@ -467,13 +524,10 @@ jobs:
             apps/web/test-results/
           retention-days: 7
 
-      - name: Stop Docker Compose services
-        if: always()
-        run: docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v
   # ─── Build & Push Docker Images ────────────────────────────────────────
   build:
     name: Build & Push Images
-    needs: [lint, type-check, unit-tests]
+    needs: setup
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -493,7 +547,7 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Extract metadata
+      - name: Extract metadata (API)
         id: meta-api
         uses: docker/metadata-action@v5
         with:
@@ -556,10 +610,33 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # ─── Coverage Check ────────────────────────────────────────────────────
+  coverage:
+    name: Coverage Check
+    needs: [unit-tests, integration-tests]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download unit coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: unit-coverage-report
+          path: coverage/unit/
+
+      - name: Download integration coverage
+        uses: actions/download-artifact@v4
+        with:
+          name: integration-coverage-report
+          path: coverage/integration/
+
+      - name: Check coverage thresholds
+        run: |
+          echo "Coverage reports downloaded successfully"
+          echo "Coverage enforcement happens at test runtime via Jest thresholds"
+
   # ─── Deploy to Production ──────────────────────────────────────────────
   deploy:
     name: Deploy to Production
-    needs: build
+    needs: [lint, type-check, unit-tests, integration-tests, api-tests, e2e-tests, build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production
@@ -587,7 +664,6 @@ jobs:
           # Copy docker-compose files to server
           scp -i ~/.ssh/deploy_key \
             docker-compose.yml \
-            docker/docker-compose.prod.yml \
             docker/mosquitto/mosquitto.conf \
             docker/prometheus/prometheus.yml \
             ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_PATH}/

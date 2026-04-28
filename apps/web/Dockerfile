@@ -32,9 +32,6 @@ ENV NODE_ENV=production
 
 RUN cd apps/web && pnpm build
 
-# Prune dev dependencies for production
-RUN pnpm install --frozen-lockfile --prod
-
 # ─── Stage 3: Runner ──────────────────────────────────────────────────────
 FROM node:20-alpine AS runner
 
@@ -50,7 +47,6 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV PORT=3000
 ENV HOSTNAME="0.0.0.0"
 
-COPY --from=builder --chown=appuser:appgroup /app/apps/web/public ./public
 COPY --from=builder --chown=appuser:appgroup /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=appuser:appgroup /app/apps/web/.next/static ./.next/static
 

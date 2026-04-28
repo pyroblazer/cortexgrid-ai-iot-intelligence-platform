@@ -9,6 +9,7 @@
     "lint": "eslint \"src/**/*.ts\"",
     "type-check": "tsc --noEmit",
     "test": "jest",
+    "test:unit": "jest --coverage",
     "test:cov": "jest --coverage",
     "clean": "rimraf dist node_modules"
   },
