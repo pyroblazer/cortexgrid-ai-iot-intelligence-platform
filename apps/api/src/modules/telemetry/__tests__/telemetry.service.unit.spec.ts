@@ -1,8 +1,8 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import { TelemetryService } from '../telemetry.service';
-import { PrismaService } from '../../common/prisma/prisma.service';
-import { RedisService } from '../../common/redis/redis.service';
+import { PrismaService } from '../../../common/prisma/prisma.service';
+import { RedisService } from '../../../common/redis/redis.service';
 
 describe('TelemetryService', () => {
   let service: TelemetryService;
@@ -338,7 +338,7 @@ describe('TelemetryService', () => {
       });
 
       expect(result.aggregated).toBeDefined();
-      expect(result.aggregated.interval).toBe('1h');
+      expect(result.aggregated!.interval).toBe('1h');
     });
   });
 

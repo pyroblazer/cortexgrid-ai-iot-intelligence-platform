@@ -1,3 +1,4 @@
+import '@testing-library/jest-dom';
 /**
  * Unit tests for KpiCard component (src/components/dashboard/kpi-card.tsx)
  *

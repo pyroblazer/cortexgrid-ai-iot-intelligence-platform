@@ -1,6 +1,7 @@
 /** @type {import('jest').Config} */
 module.exports = {
   testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   transform: {
     '^.+\\.(t|j)sx?$': ['ts-jest', {
       tsconfig: {
@@ -19,6 +20,9 @@ module.exports = {
   },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@cortexgrid/ui$': '<rootDir>/../../packages/ui/src/index.ts',
+    '^@cortexgrid/ui/(.*)$': '<rootDir>/../../packages/ui/src/$1',
+    '^@cortexgrid/types$': '<rootDir>/../../packages/types/src/index.ts',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/tests/'],
   collectCoverageFrom: [

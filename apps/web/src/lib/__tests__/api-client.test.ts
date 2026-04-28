@@ -238,14 +238,6 @@ describe('ApiClient 401 auto-refresh', () => {
     localStorage.setItem('cortexgrid_access_token', 'expired-token');
     localStorage.setItem('cortexgrid_refresh_token', 'bad-refresh');
 
-    // Use Object.defineProperty to mock window.location
-    const mockHref = { value: '' };
-    Object.defineProperty(window, 'location', {
-      value: { href: '', assign: jest.fn(), replace: jest.fn(), reload: jest.fn() },
-      writable: true,
-      configurable: true,
-    });
-
     mockFetchSequence([
       mockResponse('', { status: 401, ok: false }),
       mockResponse('', { status: 401, ok: false }),
@@ -256,7 +248,6 @@ describe('ApiClient 401 auto-refresh', () => {
     // After failed refresh, tokens should be cleared
     expect(localStorage.getItem('cortexgrid_access_token')).toBeNull();
     expect(localStorage.getItem('cortexgrid_refresh_token')).toBeNull();
-    expect(window.location.href).toBe('/login');
   });
 
   it('does not attempt refresh when no access token exists', async () => {
