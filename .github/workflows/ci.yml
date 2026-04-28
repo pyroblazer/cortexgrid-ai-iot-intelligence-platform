@@ -222,6 +222,10 @@ jobs:
       DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
       REDIS_HOST: localhost
       REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      MQTT_BROKER_URL: mqtt://localhost:1883
+      PORT: 3001
 
     steps:
       - name: Checkout repository
