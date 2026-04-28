@@ -6,7 +6,6 @@ import {
   PowerMeter,
   GasSensor,
   DEVICE_PROFILES,
-  SimulationContext,
   createSimulationContext,
   getProfile,
   getAllProfileTypes,

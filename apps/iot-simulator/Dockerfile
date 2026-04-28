@@ -29,9 +29,6 @@ COPY packages ./packages
 
 RUN cd apps/iot-simulator && pnpm build
 
-# Prune dev dependencies for production
-RUN pnpm install --frozen-lockfile --prod
-
 # ─── Stage 3: Production ──────────────────────────────────────────────────
 FROM node:20-alpine AS prod
 

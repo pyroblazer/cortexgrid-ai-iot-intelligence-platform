@@ -9,7 +9,7 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "jest",
-    "test:unit": "jest --testPathPattern='\\.unit\\.spec\\.ts$' --passWithNoTests",
+    "test:unit": "jest --testPathPattern='\\.test\\.(ts|tsx)$'",
     "test:e2e": "playwright test",
     "clean": "rimraf .next dist node_modules"
   },
@@ -35,6 +35,8 @@
   "devDependencies": {
     "@cortexgrid/eslint-config": "workspace:*",
     "@playwright/test": "^1.42.0",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/jest": "^29.5.0",
     "@types/node": "^20.11.0",
     "@types/react": "^18.3.0",

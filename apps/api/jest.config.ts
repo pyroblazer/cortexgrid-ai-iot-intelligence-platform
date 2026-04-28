@@ -9,8 +9,23 @@ const config: Config = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
-  collectCoverageFrom: ['src/**/*.(t|j)s'],
+  collectCoverageFrom: [
+    'src/**/*.(t|j)s',
+    '!src/main.ts',
+    '!src/**/*.d.ts',
+    '!src/**/index.ts',
+    '!src/**/__tests__/**',
+  ],
   coverageDirectory: './coverage',
+  coverageReporters: ['text', 'lcov', 'clover'],
+  coverageThreshold: {
+    global: {
+      branches: 90,
+      functions: 90,
+      lines: 90,
+      statements: 90,
+    },
+  },
   testEnvironment: 'node',
   roots: ['<rootDir>/src/', '<rootDir>/test/'],
   moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
