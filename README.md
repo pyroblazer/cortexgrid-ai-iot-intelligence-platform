@@ -72,7 +72,102 @@ Traditional IoT platforms are either prohibitively expensive or lack the intelli
 
 ---
 
-## Features
+## Compliance & Security Standards
+
+CortexGrid implements enforceable controls aligned with major industry standards. Below is a mapping of each standard to the specific code-level controls that satisfy its requirements.
+
+### ISO 27001 — Information Security Management System (ISMS)
+
+| Control Area | Implementation | Code Reference |
+|-------------|---------------|----------------|
+| **Access Control (A.9)** | JWT authentication + RBAC (OWNER/ADMIN/MEMBER/VIEWER) per organization | `src/common/guards/jwt-auth.guard.ts`, `src/common/guards/roles.guard.ts` |
+| **Audit Logging (A.12.4)** | All data-mutating operations logged with user, IP, user-agent, entity, action | `src/modules/audit/audit.service.ts`, `src/common/interceptors/audit.interceptor.ts` |
+| **Encryption (A.10.1)** | bcrypt (12 rounds) for password hashing, JWT signed with separate secrets | `src/modules/auth/auth.service.ts` |
+| **Incident Response (A.16.1)** | Real-time alerting engine with severity levels and lifecycle management | `src/modules/alert/alert.service.ts` |
+| **Vulnerability Protection (A.12.6)** | Helmet security headers, rate limiting (100 req/min), input validation | `src/main.ts`, `ValidationPipe` config |
+| **Data Retention (A.8.3.2)** | Configurable per-organization telemetry retention with automated cleanup | `src/common/queue/processors/retention.processor.ts` |
+
+### ISO 9001 — Quality Management System (QMS)
+
+| Control Area | Implementation | Code Reference |
+|-------------|---------------|----------------|
+| **Input Validation (7.5.3)** | Global `ValidationPipe` with whitelist + forbidNonWhitelisted on all endpoints | `src/main.ts` |
+| **Error Handling (10.2)** | `AllExceptionsFilter` returns consistent error responses across all endpoints | `src/common/filters/all-exceptions.filter.ts` |
+| **Monitoring & Measurement (9.1.1)** | Prometheus metrics, Grafana dashboards, health check endpoint | `src/modules/health/health.service.ts`, `docker/prometheus/`, `docker/grafana/` |
+| **Test Coverage (7.1.5)** | 69+ integration tests across all modules, CI-enforced pass requirement | `apps/api/test/*.integration.spec.ts` |
+| **Documented Processes (7.5)** | Swagger/OpenAPI auto-generated docs, design decision records | `src/main.ts` (Swagger setup), `docs/` |
+
+### GDPR — General Data Protection Regulation
+
+| Right | Implementation | Endpoint | Code Reference |
+|-------|---------------|----------|----------------|
+| **Art. 15 — Right of Access** | Full user data export including memberships, notifications, alerts | `GET /api/v1/auth/me` | `src/modules/auth/auth.service.ts:getProfile()` |
+| **Art. 17 — Right to Erasure** | Account deletion with cascading cleanup of personal data | `DELETE /api/v1/auth/me` | `src/modules/auth/auth.service.ts:deleteUserAccount()` |
+| **Art. 20 — Data Portability** | Complete user data export as structured JSON | `GET /api/v1/auth/me/export` | `src/modules/auth/auth.service.ts:exportUserData()` |
+| **Art. 25 — Data Protection by Design** | Minimal data collection, retention enforcement, organization-scoped queries | — | `src/common/queue/processors/retention.processor.ts` |
+| **Art. 32 — Security of Processing** | Encryption at rest (bcrypt), in transit (HTTPS), access control (JWT+RBAC) | — | `src/modules/auth/auth.service.ts` |
+| **Art. 33 — Breach Notification** | Audit trail + alerting system for detecting unauthorized access | `GET /api/v1/audit-logs` | `src/modules/audit/audit.service.ts` |
+| **Art. 5(1)(e) — Storage Limitation** | Automated data retention enforcement based on org settings | — | `src/common/queue/processors/retention.processor.ts` |
+
+### SOC 2 Type II — Trust Services Criteria
+
+| Criteria | Control | Code Reference |
+|----------|---------|----------------|
+| **CC6.1 — Logical Access** | JWT with short-lived access tokens (15min), Redis-stored refresh tokens with instant revocation | `src/modules/auth/auth.service.ts` |
+| **CC6.2 — Authentication** | bcrypt password hashing (12 rounds), credential verification on every request | `src/modules/auth/auth.service.ts` |
+| **CC6.3 — Authorization** | RBAC with 4 roles per organization, `@Roles()` decorator for endpoint-level enforcement | `src/common/guards/roles.guard.ts` |
+| **CC7.1 — Detection & Monitoring** | Audit logging of all mutations, HTTP request logging interceptor | `src/modules/audit/`, `src/common/interceptors/logging.interceptor.ts` |
+| **CC7.2 — Incident Response** | Alert rules engine with configurable conditions and severity escalation | `src/modules/alert/` |
+| **CC8.1 — Change Management** | Git-based CI/CD pipeline with automated testing gates | `.github/workflows/ci.yml` |
+
+### NIST Cybersecurity Framework (CSF) 2.0
+
+| Function | Implementation | Code Reference |
+|----------|---------------|----------------|
+| **Identify (ID.AM)** | Asset inventory via device management module, organization-based data classification | `src/modules/device/` |
+| **Protect (PR.AC)** | Access control (JWT+RBAC), rate limiting, input validation, Helmet security headers | `src/common/guards/`, `src/main.ts` |
+| **Protect (PR.DS)** | Data encryption at rest (bcrypt), parameterized queries (Prisma ORM), data isolation per org | `src/modules/auth/`, `src/common/prisma/` |
+| **Detect (DE.CM)** | Alert rules engine, anomaly detection (z-score), continuous monitoring via health checks | `src/modules/alert/`, `src/modules/ai/` |
+| **Respond (RS.RP)** | Alert lifecycle (Active -> Acknowledged -> Resolved), notification delivery | `src/modules/alert/`, `src/modules/notification/` |
+| **Recover (RC.RP)** | Docker volume persistence for PostgreSQL/Redis, infrastructure-as-code via docker-compose | `docker-compose.yml` |
+
+### IEC 62443 — Industrial Automation and Control Systems Security
+
+| Requirement | Implementation | Code Reference |
+|-------------|---------------|----------------|
+| **Zone Model (SR 5.1)** | Multi-tenant organization isolation — all queries scoped by `organizationId` | Every service module filters by `organizationId` |
+| **Device Authentication (SR 1.1)** | MQTT broker with username/password config, device lookup by serial number or ID | `src/modules/telemetry/mqtt/mqtt.service.ts` |
+| **Input Validation (SR 3.1)** | MQTT payload schema validation rejects malformed/unexpected data | `src/common/utils/validate-mqtt-payload.ts` |
+| **Audit Trail (SR 6.1)** | Comprehensive audit logging of all data mutations | `src/modules/audit/audit.service.ts` |
+| **Communication Integrity (SR 4.1)** | MQTT QoS 1 (at-least-once delivery), TLS-ready broker configuration | `src/modules/telemetry/mqtt/mqtt.service.ts` |
+
+### OWASP Top 10 (2021)
+
+| Risk | Mitigation | Code Reference |
+|------|-----------|----------------|
+| **A01 — Broken Access Control** | JWT auth guard on all endpoints (except `@Public()`), RBAC via `RolesGuard` | `src/common/guards/jwt-auth.guard.ts`, `src/common/guards/roles.guard.ts` |
+| **A02 — Cryptographic Failures** | bcrypt (12 rounds) for passwords, separate JWT secrets for access/refresh tokens | `src/modules/auth/auth.service.ts` |
+| **A03 — Injection** | Prisma ORM parameterized queries prevent SQL injection, `ValidationPipe` strips unexpected fields | `src/common/prisma/`, `src/main.ts` |
+| **A04 — Insecure Design** | Multi-layer validation (DTO class-validator + Prisma schema + business logic), rate limiting | All DTO files, `src/main.ts` |
+| **A05 — Security Misconfiguration** | Helmet for security headers (CSP, X-Frame-Options, etc.), CORS via environment variable | `src/main.ts` |
+| **A06 — Vulnerable Components** | Docker pinned images (`postgres:16-alpine`, `redis:7-alpine`), pnpm lockfile | `docker-compose.yml`, `pnpm-lock.yaml` |
+| **A07 — Auth Failures** | Vague error messages ("Invalid email or password"), account deactivation checks, token revocation on logout | `src/modules/auth/auth.service.ts` |
+| **A08 — Data Integrity Failures** | JWT signature verification on every request, separate signing secrets | `src/modules/auth/strategies/jwt.strategy.ts` |
+| **A09 — Logging Failures** | `LoggingInterceptor` records all HTTP requests, `AuditInterceptor` records all mutations, error logging | `src/common/interceptors/` |
+| **A10 — SSRF** | Input validation on all endpoints, no user-controlled URL fetching in core services | All DTO files |
+
+---
+
+### Compliance Endpoints
+
+| Endpoint | Standard | Purpose |
+|----------|----------|---------|
+| `GET /api/v1/audit-logs` | ISO 27001, SOC 2, NIST CSF | Query audit trail (OWNER/ADMIN only) |
+| `GET /api/v1/auth/me/export` | GDPR Art. 20 | Export all user data (JSON) |
+| `DELETE /api/v1/auth/me` | GDPR Art. 17 | Delete user account and personal data |
+| `GET /health` | SOC 2, ISO 27001 | System health with compliance status |
+| `PATCH /api/v1/auth/me` | ISO 27001 | Update user profile |
+| `PATCH /api/v1/auth/me/password` | ISO 27001 | Change password (requires current password) |
 
 ### Multi-Tenant SaaS
 - Organization-based isolation with membership roles (Owner, Admin, Member, Viewer)

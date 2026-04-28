@@ -15,7 +15,7 @@
  *
  * Without this file, none of the routes, services, or modules would work.
  */
-import { NestFactory } from '@nestjs/core';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ConfigService } from '@nestjs/config';
@@ -24,6 +24,8 @@ import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { TransformInterceptor } from './common/interceptors/transform.interceptor';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
+import { AuditInterceptor } from './common/interceptors/audit.interceptor';
+import { AuditService } from './modules/audit/audit.service';
 import { NestExpressApplication } from '@nestjs/platform-express';
 
 /**
@@ -93,6 +95,7 @@ async function bootstrap() {
   app.useGlobalFilters(new AllExceptionsFilter());
   app.useGlobalInterceptors(
     new LoggingInterceptor(),
+    new AuditInterceptor(app.get(Reflector), app.get(AuditService)),
     new TransformInterceptor(),
   );
 

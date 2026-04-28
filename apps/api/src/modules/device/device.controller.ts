@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
+import { AuditAction } from '../../common/decorators/audit-action.decorator';
 
 @ApiTags('Devices')
 @ApiBearerAuth('JWT-auth')
@@ -31,6 +32,7 @@ export class DeviceController {
   constructor(private readonly deviceService: DeviceService) {}
 
   @Post()
+  @AuditAction('device.create', 'Device')
   @ApiOperation({ summary: 'Register a new device' })
   @ApiResponse({ status: 201, description: 'Device registered successfully' })
   @ApiResponse({ status: 400, description: 'Device limit reached or serial number exists' })
@@ -93,6 +95,7 @@ export class DeviceController {
   }
 
   @Patch(':id')
+  @AuditAction('device.update', 'Device')
   @ApiOperation({ summary: 'Update device details' })
   @ApiResponse({ status: 200, description: 'Device updated' })
   @ApiResponse({ status: 404, description: 'Device not found' })
@@ -106,6 +109,7 @@ export class DeviceController {
   }
 
   @Delete(':id')
+  @AuditAction('device.delete', 'Device')
   @ApiOperation({ summary: 'Delete (deactivate) a device' })
   @ApiResponse({ status: 200, description: 'Device deactivated' })
   @ApiResponse({ status: 404, description: 'Device not found' })

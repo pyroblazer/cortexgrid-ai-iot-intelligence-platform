@@ -42,6 +42,7 @@ import { BillingModule } from './modules/billing/billing.module';
 import { AlertModule } from './modules/alert/alert.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { HealthModule } from './modules/health/health.module';
+import { AuditModule } from './modules/audit/audit.module';
 
 @Module({
   imports: [
@@ -80,6 +81,7 @@ import { HealthModule } from './modules/health/health.module';
     BillingModule,        // Stripe payment integration
     AlertModule,          // Alert rules engine and alert management
     NotificationModule,   // User notification delivery
+    AuditModule,          // Audit logging for compliance (ISO 27001, SOC 2, GDPR)
     HealthModule,         // Health check endpoints for infrastructure monitoring
   ],
   providers: [

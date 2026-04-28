@@ -251,3 +251,19 @@ model Notification {
 
   user User @relation(fields: [userId], references: [id])
 }
+
+model AuditLog {
+  id             String   @id @default(cuid())
+  userId         String?
+  organizationId String?
+  action         String
+  entity         String
+  entityId       String?
+  changes        Json     @default("{}")
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId, createdAt(sort: Desc)])
+  @@index([userId, createdAt(sort: Desc)])
+}

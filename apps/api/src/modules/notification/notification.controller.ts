@@ -3,7 +3,9 @@ import {
   Get,
   Patch,
   Put,
+  Delete,
   Body,
+  Param,
   Query,
   Request,
   UseGuards,
@@ -79,5 +81,16 @@ export class NotificationController {
     @Body() dto: UpdatePreferencesDto,
   ) {
     return this.notificationService.updatePreferences(req.user.id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Delete a notification' })
+  @ApiResponse({ status: 200, description: 'Notification deleted' })
+  @ApiResponse({ status: 404, description: 'Notification not found' })
+  async deleteOne(
+    @Request() req: any,
+    @Param('id') notificationId: string,
+  ) {
+    return this.notificationService.deleteOne(notificationId, req.user.id);
   }
 }

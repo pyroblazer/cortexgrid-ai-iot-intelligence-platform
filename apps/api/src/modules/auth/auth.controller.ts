@@ -21,6 +21,8 @@ import {
   Controller,
   Post,
   Get,
+  Patch,
+  Delete,
   Body,
   UseGuards,
   HttpCode,
@@ -38,9 +40,12 @@ import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshTokenDto } from './dto/refresh-token.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
+import { AuditAction } from '../../common/decorators/audit-action.decorator';
 
 // Groups all auth endpoints under the "Auth" tag in Swagger documentation.
 @ApiTags('Auth')
@@ -58,6 +63,7 @@ export class AuthController {
    */
   @Public()
   @Post('register')
+  @AuditAction('user.register', 'User')
   @ApiOperation({ summary: 'Register a new user and organization' })
   @ApiResponse({
     status: 201,
@@ -107,6 +113,7 @@ export class AuthController {
    */
   @Public()
   @Post('login')
+  @AuditAction('user.login', 'User')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({
@@ -215,5 +222,56 @@ export class AuthController {
   @ApiUnauthorizedResponse({ description: 'Not authenticated' })
   async getProfile(@CurrentUser('id') userId: string) {
     return this.authService.getProfile(userId);
+  }
+
+  @Patch('me')
+  @AuditAction('user.updateProfile', 'User')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated' })
+  async updateProfile(
+    @CurrentUser('id') userId: string,
+    @Body() updateDto: UpdateProfileDto,
+  ) {
+    return this.authService.updateProfile(userId, updateDto);
+  }
+
+  @Patch('me/password')
+  @AuditAction('user.changePassword', 'User')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change current user password' })
+  @ApiResponse({ status: 200, description: 'Password changed' })
+  @ApiUnauthorizedResponse({ description: 'Current password is incorrect' })
+  async changePassword(
+    @CurrentUser('id') userId: string,
+    @Body() changePasswordDto: ChangePasswordDto,
+  ) {
+    return this.authService.changePassword(
+      userId,
+      changePasswordDto.currentPassword,
+      changePasswordDto.newPassword,
+    );
+  }
+
+  @Get('me/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Export all user data (GDPR Article 20)' })
+  @ApiResponse({ status: 200, description: 'User data exported' })
+  async exportData(@CurrentUser('id') userId: string) {
+    return this.authService.exportUserData(userId);
+  }
+
+  @Delete('me')
+  @AuditAction('user.delete', 'User')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Delete user account (GDPR Article 17)' })
+  @ApiResponse({ status: 200, description: 'Account deleted' })
+  async deleteAccount(@CurrentUser('id') userId: string) {
+    return this.authService.deleteUserAccount(userId);
   }
 }
