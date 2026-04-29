@@ -148,5 +148,5 @@ async function bootstrap() {
 // Kick off the server - this is the first thing that runs when the file is loaded.
 bootstrap().catch((err) => {
   console.error('Failed to start CortexGrid API:', err);
-  process.exit(1);
+  throw err;
 });
