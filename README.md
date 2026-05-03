@@ -316,10 +316,10 @@ Covers all endpoints across 9 tag groups:
 ### Quick Start (Docker)
 
 ```bash
-pnpm docker:start
+docker compose up --build
 ```
 
-This stops any previous containers and builds/starts everything fresh — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+This automatically cleans up any previous containers and starts everything fresh — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 ### Access
 
