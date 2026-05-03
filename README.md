@@ -309,17 +309,17 @@ Covers all endpoints across 9 tag groups:
 ## Getting Started
 
 ### Prerequisites
+- Node.js >= 20
+- pnpm >= 9
 - Docker & Docker Compose
 
 ### Quick Start (Docker)
 
 ```bash
-./start.sh
+pnpm docker:start
 ```
 
-This stops any previous containers and builds/starts everything fresh. All services start with sensible defaults — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
-
-Alternatively: `pnpm docker:start`
+This stops any previous containers and builds/starts everything fresh — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 ### Access
 

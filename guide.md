@@ -2,27 +2,17 @@
 
 Get CortexGrid running with a single command. No environment configuration needed.
 
-## One Command (Docker)
+## One Command
 
 ```bash
-./start.sh
+pnpm docker:start
 ```
 
-This automatically stops any previous containers, then builds and starts everything fresh. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+This stops any previous containers and builds/starts everything fresh. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-migration + seed), Web frontend, IoT Simulator, Prometheus, Grafana, Elasticsearch, and Kibana.
 
 > **First run** takes a few minutes to build Docker images. Subsequent starts are instant.
-
-### Alternative commands
-
-```bash
-# Same thing via pnpm (cross-platform)
-pnpm docker:start
-
-# Same thing manually (equivalent to what start.sh does)
-docker compose down --remove-orphans && docker compose up --build
-```
 
 ---
 
@@ -39,23 +29,18 @@ docker compose down --remove-orphans && docker compose up --build
 
 ---
 
-## Useful Docker Commands
+## Useful Commands
 
 ```bash
-# Start all services fresh (recommended)
-./start.sh
+# Start fresh (recommended)
+pnpm docker:start
 
-# Start in background
-./start.sh -d
+# Stop all services
+pnpm docker:stop
 
 # View logs for a specific service
 docker compose logs -f api
 docker compose logs -f web
-
-# Stop all services
-pnpm docker:stop
-# or
-docker compose down
 
 # Stop and remove all data (full reset)
 docker compose down -v
@@ -122,7 +107,7 @@ pnpm --filter @cortexgrid/api test:cov
 ### Port already in use
 ```bash
 # Stop all containers and try again
-docker compose down
+pnpm docker:stop
 
 # Or find what's using the port
 netstat -ano | findstr :3001
@@ -137,7 +122,7 @@ docker compose restart postgres
 ### Clean start
 ```bash
 docker compose down -v
-./start.sh
+pnpm docker:start
 ```
 
 ### API health check
