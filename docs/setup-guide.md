@@ -1,44 +1,86 @@
 # CortexGrid - Setup Guide
 
-## Prerequisites
-
-- **Node.js** >= 20.0.0
-- **pnpm** >= 9.0.0
-- **Docker** & Docker Compose
-- **Git**
+Two ways to run CortexGrid: **Docker** (recommended, zero config) or **local development** (for active coding).
 
 ---
 
-## Quick Start (Terminal Commands)
+## Option A: Docker (Recommended)
 
-### 1. Clone and enter the project
+### Prerequisites
+
+- **Docker** & Docker Compose
+
+### One Command Start
+
+```bash
+docker compose up --build
+```
+
+All services start automatically with sensible defaults:
+- PostgreSQL, Redis, Mosquitto start first
+- API waits for infrastructure, then auto-runs migrations and seeds demo data
+- Web frontend starts after API is healthy
+- IoT Simulator, Prometheus, Grafana, Elasticsearch, Kibana start in parallel
+
+No `.env` file needed. No manual database setup. No configuration required.
+
+### Access Points
+
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | demo@cortexgrid.io / Demo@1234 |
+| API | http://localhost:3001 | — |
+| Swagger Docs | http://localhost:3001/api/v1/docs | — |
+| Grafana | http://localhost:3002 | admin / cortexgrid |
+| Prometheus | http://localhost:9090 | — |
+| Kibana | http://localhost:5601 | — |
+
+### Docker Commands Reference
+
+```bash
+# Start (foreground)
+docker compose up --build
+
+# Start (background)
+docker compose up --build -d
+
+# View logs
+docker compose logs -f api
+docker compose logs -f web
+docker compose logs -f iot-simulator
+
+# Stop
+docker compose down
+
+# Stop and wipe all data (fresh start)
+docker compose down -v
+
+# Rebuild a single service after code changes
+docker compose up --build -d api
+```
+
+---
+
+## Option B: Local Development
+
+For active development with hot-reload and faster iteration.
+
+### Prerequisites
+
+- **Node.js** >= 20.0.0
+- **pnpm** >= 9.0.0
+- **Docker** (for PostgreSQL, Redis, Mosquitto)
+- **Git**
+
+### Step 1: Clone and Install
 
 ```bash
 git clone <repo-url> cortexgrid
 cd cortexgrid
-```
-
-### 2. Install pnpm (if not installed)
-
-```bash
-npm install -g pnpm@9
-```
-
-### 3. Install all dependencies
-
-```bash
 pnpm install
 ```
 
-### 4. Copy environment variables
-
-```bash
-cp .env.example .env
-```
-
-Edit `.env` and fill in the values. For local development, the defaults work out of the box.
-
-### 5. Start infrastructure services (PostgreSQL, Redis, Mosquitto)
+### Step 2: Start Infrastructure
 
 ```bash
 docker compose up -d postgres redis mosquitto
@@ -50,71 +92,41 @@ Wait for services to be healthy:
 docker compose ps
 ```
 
-### 6. Generate Prisma client and run migrations
+### Step 3: Configure Environment
+
+```bash
+cp .env.example .env
+```
+
+The defaults work for local development. Only edit if you changed ports or credentials.
+
+### Step 4: Database Setup
 
 ```bash
 cd apps/api
-pnpm db:generate
-pnpm db:migrate
+npx prisma generate
+npx prisma migrate dev
+npx prisma db seed
 cd ../..
 ```
 
-### 7. Seed the database with demo data
+### Step 5: Start Development Servers
 
 ```bash
-cd apps/api
-pnpm db:seed
-cd ../..
-```
-
-### 8. Start development servers
-
-In separate terminals or using tmux:
-
-```bash
-# Terminal 1 - API backend
-pnpm --filter @cortexgrid/api dev
-
-# Terminal 2 - Web frontend
-pnpm --filter @cortexgrid/web dev
-
-# Terminal 3 - IoT simulator (optional)
-pnpm --filter @cortexgrid/iot-simulator dev
-```
-
-Or start everything at once:
-
-```bash
+# Option A: Start everything
 pnpm dev
+
+# Option B: Start individually (in separate terminals)
+pnpm --filter @cortexgrid/api dev            # API on :3001
+pnpm --filter @cortexgrid/web dev            # Web on :3000
+pnpm --filter @cortexgrid/iot-simulator dev  # Simulator
 ```
 
-### 9. Access the platform
-
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| API | http://localhost:3001 |
-| API Docs (Swagger) | http://localhost:3001/api/docs |
-| Grafana | http://localhost:3002 (admin/admin) |
-| Prometheus | http://localhost:9090 |
-| Kibana | http://localhost:5601 |
-
-### 10. Login with demo credentials
-
-- **Email:** demo@cortexgrid.io
-- **Password:** Demo@1234
-
----
-
-## Full Docker Compose (All Services)
-
-Start everything including observability stack:
+### Step 6: Verify
 
 ```bash
-docker compose up -d
+curl http://localhost:3001/health
 ```
-
-This starts: PostgreSQL, Redis, Mosquitto, API, Web, IoT Simulator, Prometheus, Grafana, Elasticsearch, Kibana.
 
 ---
 
@@ -134,107 +146,31 @@ docker compose up -d postgres redis
 pnpm test:integration
 ```
 
-### E2E Tests (API)
+### E2E Tests
 
 ```bash
+# API E2E tests
 pnpm --filter @cortexgrid/api test:e2e
-```
 
-### E2E Tests (Frontend - Playwright)
-
-```bash
+# Frontend E2E tests (Playwright)
 pnpm --filter @cortexgrid/web test:e2e
 ```
 
 ### Postman Collection (Newman)
 
 ```bash
-# Install newman globally
 npm install -g newman
-
-# Start the API server
 pnpm --filter @cortexgrid/api dev
-
-# In another terminal, run the collection
+# In another terminal:
 newman run docker/postman/cortexgrid.postman_collection.json \
   -e docker/postman/cortexgrid.postman_environment.json
 ```
 
-### Test Coverage
+### Coverage
 
 ```bash
 pnpm --filter @cortexgrid/api test:cov
 pnpm --filter @cortexgrid/iot-simulator test:cov
-```
-
----
-
-## Building for Production
-
-### Build all packages
-
-```bash
-pnpm build
-```
-
-### Docker Production Build
-
-```bash
-docker compose -f docker-compose.yml build
-docker compose -f docker-compose.yml up -d
-```
-
----
-
-## Project Structure
-
-```
-cortexgrid/
-├── apps/
-│   ├── api/                  # NestJS backend
-│   │   ├── prisma/           # Database schema & migrations
-│   │   │   ├── schema.prisma
-│   │   │   └── seed.ts
-│   │   ├── src/
-│   │   │   ├── main.ts
-│   │   │   ├── app.module.ts
-│   │   │   ├── common/       # Shared guards, interceptors, decorators
-│   │   │   └── modules/      # Feature modules
-│   │   │       ├── auth/
-│   │   │       ├── device/
-│   │   │       ├── telemetry/
-│   │   │       ├── alert/
-│   │   │       ├── ai/
-│   │   │       ├── billing/
-│   │   │       ├── notification/
-│   │   │       └── organization/
-│   │   └── test/
-│   ├── web/                  # Next.js frontend
-│   │   ├── src/
-│   │   │   ├── app/          # App Router pages
-│   │   │   ├── components/   # React components
-│   │   │   ├── hooks/        # Custom hooks
-│   │   │   ├── stores/       # Zustand stores
-│   │   │   └── lib/          # API client, utilities
-│   │   └── tests/            # Playwright E2E tests
-│   └── iot-simulator/        # IoT device simulator
-│       └── src/
-├── packages/
-│   ├── ui/                   # Shared React components
-│   ├── types/                # Shared TypeScript types
-│   ├── config/               # Shared configuration
-│   └── eslint-config/        # Shared ESLint config
-├── docker/                   # Docker configs
-│   ├── postman/
-│   ├── prometheus/
-│   ├── grafana/
-│   └── mosquitto/
-├── docs/                     # Documentation
-├── .github/workflows/        # CI/CD
-├── docker-compose.yml
-├── turbo.json
-├── pnpm-workspace.yaml
-└── package.json
 ```
 
 ---
@@ -247,37 +183,65 @@ cortexgrid/
 | `REDIS_HOST` | Redis host | `localhost` |
 | `REDIS_PORT` | Redis port | `6379` |
 | `MQTT_BROKER_URL` | MQTT broker URL | `mqtt://localhost:1883` |
-| `JWT_ACCESS_SECRET` | Secret for access tokens | *required* |
-| `JWT_REFRESH_SECRET` | Secret for refresh tokens | *required* |
+| `MQTT_USERNAME` | MQTT username | `cortexgrid` |
+| `MQTT_PASSWORD` | MQTT password | `cortexgrid` |
+| `JWT_ACCESS_SECRET` | Secret for access tokens | `local-dev-access-secret-change-in-production` |
+| `JWT_REFRESH_SECRET` | Secret for refresh tokens | `local-dev-refresh-secret-change-in-production` |
 | `JWT_ACCESS_EXPIRY` | Access token TTL | `15m` |
 | `JWT_REFRESH_EXPIRY` | Refresh token TTL | `7d` |
-| `STRIPE_SECRET_KEY` | Stripe API key (test mode) | *required for billing* |
-| `STRIPE_WEBHOOK_SECRET` | Stripe webhook signing secret | *required for billing* |
+| `STRIPE_SECRET_KEY` | Stripe API key | `sk_test_placeholder` |
 | `OLLAMA_BASE_URL` | Ollama API URL | `http://localhost:11434` |
 | `NEXT_PUBLIC_API_URL` | Backend API URL for frontend | `http://localhost:3001` |
+| `NEXT_PUBLIC_WS_URL` | WebSocket URL for frontend | `ws://localhost:3001` |
 | `PORT` | API server port | `3001` |
+
+> When running via Docker Compose, all variables are pre-configured. No `.env` file needed.
 
 ---
 
-## Useful Commands
+## Troubleshooting
 
+### Port already in use
 ```bash
-# Lint all packages
-pnpm lint
+# Stop all Docker containers
+docker compose down
 
-# Type check all packages
-pnpm type-check
-
-# Format code
-pnpm format
-
-# Clean all build artifacts
-pnpm clean
-
-# Prisma Studio (DB GUI)
-pnpm --filter @cortexgrid/api db:studio
-
-# View Docker logs
-docker compose logs -f api
-docker compose logs -f web
+# Or find what's using the port
+lsof -i :3001    # macOS/Linux
+netstat -ano | findstr :3001  # Windows
 ```
+
+### Database connection failed
+```bash
+docker compose ps postgres
+docker compose logs postgres
+docker compose restart postgres
+```
+
+### Prisma issues (local dev only)
+```bash
+cd apps/api
+npx prisma generate
+npx prisma migrate reset  # WARNING: deletes all data
+npx prisma db seed
+```
+
+### Clean start
+```bash
+# Docker: remove all data and rebuild
+docker compose down -v
+docker compose up --build
+
+# Local: clean build artifacts
+pnpm clean
+rm -rf node_modules pnpm-lock.yaml
+pnpm install
+```
+
+---
+
+## Further Reading
+
+- [README.md](../README.md) - Full project documentation
+- [guide.md](../guide.md) - Quick start guide
+- [docs/design-decisions.md](design-decisions.md) - Architecture decisions and tradeoffs

@@ -1,106 +1,87 @@
-# CortexGrid - Fast Setup Guide (Terminal Commands)
+# CortexGrid - Quick Start Guide
 
-Run these commands in order to get CortexGrid running as fast as possible.
+Get CortexGrid running with a single command. No environment configuration needed.
 
-## One-Liner Bootstrap (Copy-Paste Ready)
+## One Command (Docker)
 
 ```bash
-# Ensure pnpm is installed
-npm install -g pnpm@9 
-
-# Install all dependencies
-pnpm install
-
-# Copy env and start infrastructure
-cp .env.example .env && docker compose up -d postgres redis mosquitto
-
-# Wait for postgres to be ready (5 seconds)
-sleep 5
-
-# Generate Prisma client, migrate, and seed
-cd apps/api && pnpm db:generate && pnpm db:migrate && pnpm db:seed && cd ../..
-
-# Start all dev servers
-pnpm dev
+docker compose up --build
 ```
 
 That's it. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
+All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-migration + seed), Web frontend, IoT Simulator, Prometheus, Grafana, Elasticsearch, and Kibana.
+
+> **First run** takes a few minutes to build Docker images. Subsequent starts are instant.
+
 ---
 
-## Step-by-Step (Detailed)
+## Access Points
 
-### Step 1: Install Dependencies
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | demo@cortexgrid.io / Demo@1234 |
+| API | http://localhost:3001 | — |
+| Swagger Docs | http://localhost:3001/api/v1/docs | — |
+| Grafana | http://localhost:3002 | admin / cortexgrid |
+| Prometheus | http://localhost:9090 | — |
+| Kibana | http://localhost:5601 | — |
+
+---
+
+## Useful Docker Commands
 
 ```bash
+# Start all services (foreground, with logs)
+docker compose up --build
+
+# Start all services (detached / background)
+docker compose up --build -d
+
+# View logs for a specific service
+docker compose logs -f api
+docker compose logs -f web
+
+# Stop all services
+docker compose down
+
+# Stop and remove all data (fresh start)
+docker compose down -v
+
+# Rebuild a single service
+docker compose up --build -d api
+```
+
+---
+
+## Local Development (Without Docker)
+
+If you want to run services individually for development:
+
+```bash
+# Prerequisites: Node.js >= 20, pnpm >= 9, Docker
+
+# Install dependencies
 pnpm install
-```
 
-### Step 2: Environment Setup
-
-```bash
-cp .env.example .env
-```
-
-The defaults work for local development. Only edit if you changed ports/credentials.
-
-### Step 3: Start Infrastructure
-
-```bash
+# Start infrastructure only
 docker compose up -d postgres redis mosquitto
-```
 
-### Step 4: Database Setup
+# Copy env (defaults work for local dev)
+cp .env.example .env
 
-```bash
+# Set up database
 cd apps/api
 npx prisma generate
-npx prisma migrate dev --name init
+npx prisma migrate dev
 npx prisma db seed
 cd ../..
-```
 
-### Step 5: Start Development
-
-```bash
-# Option A: Start everything
+# Start dev servers
 pnpm dev
-
-# Option B: Start individually (in separate terminals)
-pnpm --filter @cortexgrid/api dev      # API on :3001
-pnpm --filter @cortexgrid/web dev      # Web on :3000
-pnpm --filter @cortexgrid/iot-simulator dev  # Simulator
 ```
 
-### Step 6: Verify
-
-```bash
-# API health check
-curl http://localhost:3001/health
-
-# API docs
-open http://localhost:3001/api/docs
-
-# Frontend
-open http://localhost:3000
-```
-
----
-
-## Full Stack with Observability
-
-```bash
-# Start everything (including Prometheus, Grafana, ELK)
-docker compose up -d
-
-# Access services:
-# Frontend:     http://localhost:3000
-# API:          http://localhost:3001
-# API Docs:     http://localhost:3001/api/docs
-# Grafana:      http://localhost:3002 (admin/admin)
-# Prometheus:   http://localhost:9090
-# Kibana:       http://localhost:5601
-```
+See [docs/setup-guide.md](docs/setup-guide.md) for detailed local development instructions.
 
 ---
 
@@ -110,35 +91,16 @@ docker compose up -d
 # All unit tests
 pnpm test:unit
 
-# All integration tests (needs postgres + redis running)
+# All integration tests (needs postgres + redis)
+docker compose up -d postgres redis
 pnpm test:integration
 
-# API E2E tests
+# E2E tests
 pnpm --filter @cortexgrid/api test:e2e
-
-# Frontend E2E tests (Playwright)
 pnpm --filter @cortexgrid/web test:e2e
 
 # Coverage report
 pnpm --filter @cortexgrid/api test:cov
-
-# Postman/Newman API tests
-npm install -g newman
-newman run docker/postman/cortexgrid.postman_collection.json \
-  -e docker/postman/cortexgrid.postman_environment.json
-```
-
----
-
-## Production Build
-
-```bash
-# Build all
-pnpm build
-
-# Docker production build
-docker compose build
-docker compose up -d
 ```
 
 ---
@@ -147,46 +109,34 @@ docker compose up -d
 
 ### Port already in use
 ```bash
-# Find process using port
-lsof -i :3001    # API
-lsof -i :3000    # Web
-lsof -i :5432    # PostgreSQL
+# Stop all containers and try again
+docker compose down
 
-# Kill it
-kill -9 <PID>
+# Or find what's using the port
+netstat -ano | findstr :3001
 ```
 
 ### Database connection failed
 ```bash
-# Check if postgres is running
-docker compose ps postgres
-
-# Restart it
-docker compose restart postgres
-
-# Check logs
 docker compose logs postgres
+docker compose restart postgres
 ```
 
-### Clear everything and start fresh
+### Clean start
 ```bash
-# Stop all containers
 docker compose down -v
-
-# Clean build artifacts
-pnpm clean
-
-# Reinstall
-rm -rf node_modules pnpm-lock.yaml
-pnpm install
-
-# Restart from Step 2
+docker compose up --build
 ```
 
-### Prisma issues
+### API health check
 ```bash
-cd apps/api
-npx prisma generate
-npx prisma migrate reset  # WARNING: deletes all data
-npx prisma db seed
+curl http://localhost:3001/health
 ```
+
+---
+
+## Further Reading
+
+- [README.md](README.md) - Full project documentation
+- [docs/setup-guide.md](docs/setup-guide.md) - Detailed local development setup
+- [docs/design-decisions.md](docs/design-decisions.md) - Architecture decisions and tradeoffs

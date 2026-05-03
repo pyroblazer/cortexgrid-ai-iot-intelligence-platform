@@ -268,6 +268,7 @@ cortexgrid/
 │   └── eslint-config/          # Shared ESLint configs (base, Next.js, NestJS)
 │
 ├── docker/
+│   ├── api-entrypoint.sh       # API startup (migrate + seed + serve)
 │   ├── postman/                # API test collection + environment
 │   ├── prometheus/             # Scrape config for API metrics
 │   ├── grafana/                # Pre-built dashboard (10 panels)
@@ -308,44 +309,32 @@ Covers all endpoints across 9 tag groups:
 ## Getting Started
 
 ### Prerequisites
-- Node.js >= 20
-- pnpm >= 9
 - Docker & Docker Compose
 
-### Quick Start
+### Quick Start (Docker)
 
 ```bash
-# 1. Install dependencies
-pnpm install
-
-# 2. Set up environment
-cp .env.example .env
-
-# 3. Start infrastructure
-docker compose up -d postgres redis mosquitto
-
-# 4. Set up database
-cd apps/api
-npx prisma generate
-npx prisma migrate dev
-npx prisma db seed
-cd ../..
-
-# 5. Start everything
-pnpm dev
+docker compose up --build
 ```
+
+That's it. All services start with sensible defaults — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 ### Access
 
-| Service | URL |
-|---------|-----|
-| Frontend | http://localhost:3000 |
-| API | http://localhost:3001 |
-| Swagger Docs | http://localhost:3001/api/docs |
-| Grafana | http://localhost:3002 |
-| Prometheus | http://localhost:9090 |
+| Service | URL | Credentials |
+|---------|-----|-------------|
+| Frontend | http://localhost:3000 | demo@cortexgrid.io / Demo@1234 |
+| API | http://localhost:3001 | — |
+| Swagger Docs | http://localhost:3001/api/docs | — |
+| Grafana | http://localhost:3002 | admin / cortexgrid |
+| Prometheus | http://localhost:9090 | — |
+| Kibana | http://localhost:5601 | — |
 
 **Demo credentials:** `demo@cortexgrid.io` / `Demo@1234`
+
+### Local Development (Without Docker)
+
+See [guide.md](guide.md) for the quick one-liner setup or [docs/setup-guide.md](docs/setup-guide.md) for detailed local development instructions.
 
 ---
 
@@ -384,6 +373,17 @@ See [docs/design-decisions.md](docs/design-decisions.md) for the full rationale 
 - Why Stripe over custom payments
 - Why WebSocket over SSE
 - And more...
+
+---
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [guide.md](guide.md) | Quick start guide — one command to run everything |
+| [docs/setup-guide.md](docs/setup-guide.md) | Detailed setup instructions (Docker and local dev) |
+| [docs/design-decisions.md](docs/design-decisions.md) | Architecture decisions and tradeoffs |
+| [docs/architecture.puml](docs/architecture.puml) | PlantUML system diagram |
 
 ---
 

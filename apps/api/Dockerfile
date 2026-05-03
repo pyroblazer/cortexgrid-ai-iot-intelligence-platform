@@ -45,6 +45,9 @@ COPY --from=build --chown=appuser:appgroup /app/apps/api/dist ./dist
 COPY --from=build --chown=appuser:appgroup /app/apps/api/node_modules ./node_modules
 COPY --from=build --chown=appuser:appgroup /app/apps/api/prisma ./prisma
 COPY --from=build --chown=appuser:appgroup /app/apps/api/package.json ./
+COPY --chown=appuser:appgroup docker/api-entrypoint.sh ./entrypoint.sh
+
+RUN chmod +x ./entrypoint.sh
 
 USER appuser
 
@@ -54,4 +57,4 @@ ENV NODE_ENV=production
 
 ENTRYPOINT ["/sbin/tini", "--"]
 
-CMD ["node", "dist/main.js"]
+CMD ["./entrypoint.sh"]
