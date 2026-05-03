@@ -72,13 +72,24 @@ services:
     restart: unless-stopped
     ports:
       - "3001:3001"
-    env_file:
-      - .env
     environment:
+      - NODE_ENV=production
+      - PORT=3001
       - DATABASE_URL=postgresql://cortexgrid:cortexgrid@postgres:5432/cortexgrid?schema=public
       - REDIS_HOST=redis
       - REDIS_PORT=6379
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - MQTT_USERNAME=cortexgrid
+      - MQTT_PASSWORD=cortexgrid
+      - JWT_ACCESS_SECRET=local-dev-access-secret-change-in-production
+      - JWT_REFRESH_SECRET=local-dev-refresh-secret-change-in-production
+      - JWT_ACCESS_EXPIRY=15m
+      - JWT_REFRESH_EXPIRY=7d
+      - STRIPE_SECRET_KEY=sk_test_placeholder
+      - STRIPE_WEBHOOK_SECRET=whsec_placeholder
+      - STRIPE_PRO_PRICE_ID=price_pro_monthly
+      - STRIPE_ENTERPRISE_PRICE_ID=price_enterprise_monthly
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
     depends_on:
       postgres:
         condition: service_healthy
@@ -90,8 +101,8 @@ services:
       test: ["CMD-SHELL", "wget -q -O /dev/null http://localhost:3001/health 2>/dev/null || exit 1"]
       interval: 15s
       timeout: 10s
-      retries: 5
-      start_period: 30s
+      retries: 10
+      start_period: 60s
     networks:
       - cortexgrid-network
 
@@ -100,12 +111,13 @@ services:
     build:
       context: .
       dockerfile: apps/web/Dockerfile
+      args:
+        NEXT_PUBLIC_API_URL: http://localhost:3001
+        NEXT_PUBLIC_WS_URL: ws://localhost:3001
     container_name: cortexgrid-web
     restart: unless-stopped
     ports:
       - "3000:3000"
-    env_file:
-      - .env
     environment:
       - NEXT_PUBLIC_API_URL=http://api:3001
       - NEXT_PUBLIC_WS_URL=ws://api:3001
@@ -124,6 +136,11 @@ services:
     restart: unless-stopped
     environment:
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
+      - MQTT_USERNAME=cortexgrid
+      - MQTT_PASSWORD=cortexgrid
+      - ORGANIZATION_ID=org_demo_001
+      - SIMULATOR_INTERVAL_MS=5000
+      - LOG_LEVEL=info
     depends_on:
       mosquitto:
         condition: service_healthy
