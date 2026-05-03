@@ -6,7 +6,7 @@ test.describe('Devices', () => {
     await page.fill('input[type="email"]', 'demo@cortexgrid.io');
     await page.fill('input[type="password"]', 'Demo@1234');
     await page.click('button[type="submit"]');
-    await page.waitForURL('**/dashboard', { timeout: 10000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 10000 });
     await page.goto('/devices');
     await page.waitForURL('**/devices', { timeout: 5000 });
   });

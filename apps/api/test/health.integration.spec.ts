@@ -31,9 +31,15 @@ describe('Health (integration)', () => {
   }, 30000);
 
   afterAll(async () => {
-    const prisma = app.get(PrismaService);
-    await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
-    await app.close();
+    if (app) {
+      try {
+        const prisma = app.get(PrismaService);
+        await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
+      } catch {
+        // Ignore cleanup errors during teardown
+      }
+      await app.close();
+    }
   });
 
   it('GET /health should return status with service checks', () => {
