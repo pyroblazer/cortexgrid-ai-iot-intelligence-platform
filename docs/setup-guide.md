@@ -13,8 +13,10 @@ Two ways to run CortexGrid: **Docker** (recommended, zero config) or **local dev
 ### One Command Start
 
 ```bash
-docker compose up --build
+./start.sh
 ```
+
+This automatically stops any previous containers, then builds and starts everything fresh.
 
 All services start automatically with sensible defaults:
 - PostgreSQL, Redis, Mosquitto start first
@@ -23,6 +25,16 @@ All services start automatically with sensible defaults:
 - IoT Simulator, Prometheus, Grafana, Elasticsearch, Kibana start in parallel
 
 No `.env` file needed. No manual database setup. No configuration required.
+
+### Alternative commands
+
+```bash
+# Same thing via pnpm (cross-platform)
+pnpm docker:start
+
+# Same thing manually
+docker compose down --remove-orphans && docker compose up --build
+```
 
 ### Access Points
 
@@ -38,21 +50,26 @@ No `.env` file needed. No manual database setup. No configuration required.
 ### Docker Commands Reference
 
 ```bash
-# Start (foreground)
-docker compose up --build
+# Start fresh (recommended)
+./start.sh
 
-# Start (background)
-docker compose up --build -d
+# Start in background
+./start.sh -d
+
+# Via pnpm (cross-platform)
+pnpm docker:start
+
+# Stop
+pnpm docker:stop
+# or
+docker compose down
 
 # View logs
 docker compose logs -f api
 docker compose logs -f web
 docker compose logs -f iot-simulator
 
-# Stop
-docker compose down
-
-# Stop and wipe all data (fresh start)
+# Stop and wipe all data (full reset)
 docker compose down -v
 
 # Rebuild a single service after code changes

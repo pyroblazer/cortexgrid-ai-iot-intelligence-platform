@@ -691,10 +691,13 @@ jobs:
           ssh -i ~/.ssh/deploy_key ${DEPLOY_USER}@${DEPLOY_HOST} << 'DEPLOY_SCRIPT'
             cd ${{ secrets.DEPLOY_PATH }}
 
+            echo "Stopping previous deployment..."
+            docker compose down --remove-orphans
+
             echo "Pulling latest images..."
             docker compose pull
 
-            echo "Rolling update..."
+            echo "Starting services..."
             docker compose up -d --remove-orphans --no-build
 
             echo "Running database migrations..."

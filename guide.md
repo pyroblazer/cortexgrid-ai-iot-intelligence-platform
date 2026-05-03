@@ -5,14 +5,24 @@ Get CortexGrid running with a single command. No environment configuration neede
 ## One Command (Docker)
 
 ```bash
-docker compose up --build
+./start.sh
 ```
 
-That's it. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+This automatically stops any previous containers, then builds and starts everything fresh. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-migration + seed), Web frontend, IoT Simulator, Prometheus, Grafana, Elasticsearch, and Kibana.
 
 > **First run** takes a few minutes to build Docker images. Subsequent starts are instant.
+
+### Alternative commands
+
+```bash
+# Same thing via pnpm (cross-platform)
+pnpm docker:start
+
+# Same thing manually (equivalent to what start.sh does)
+docker compose down --remove-orphans && docker compose up --build
+```
 
 ---
 
@@ -32,20 +42,22 @@ All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-m
 ## Useful Docker Commands
 
 ```bash
-# Start all services (foreground, with logs)
-docker compose up --build
+# Start all services fresh (recommended)
+./start.sh
 
-# Start all services (detached / background)
-docker compose up --build -d
+# Start in background
+./start.sh -d
 
 # View logs for a specific service
 docker compose logs -f api
 docker compose logs -f web
 
 # Stop all services
+pnpm docker:stop
+# or
 docker compose down
 
-# Stop and remove all data (fresh start)
+# Stop and remove all data (full reset)
 docker compose down -v
 
 # Rebuild a single service
@@ -125,7 +137,7 @@ docker compose restart postgres
 ### Clean start
 ```bash
 docker compose down -v
-docker compose up --build
+./start.sh
 ```
 
 ### API health check

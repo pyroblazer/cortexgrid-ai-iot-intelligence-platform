@@ -314,10 +314,12 @@ Covers all endpoints across 9 tag groups:
 ### Quick Start (Docker)
 
 ```bash
-docker compose up --build
+./start.sh
 ```
 
-That's it. All services start with sensible defaults — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+This stops any previous containers and builds/starts everything fresh. All services start with sensible defaults — no configuration needed. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+
+Alternatively: `pnpm docker:start`
 
 ### Access
 
