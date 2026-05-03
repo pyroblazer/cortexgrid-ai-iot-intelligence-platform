@@ -5,10 +5,10 @@ Get CortexGrid running with a single command. No environment configuration neede
 ## One Command
 
 ```bash
-pnpm docker:start
+docker compose up --build
 ```
 
-This stops any previous containers and builds/starts everything fresh. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
+This automatically cleans up previous containers and starts everything fresh. Open http://localhost:3000 and login with `demo@cortexgrid.io` / `Demo@1234`.
 
 All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-migration + seed), Web frontend, IoT Simulator, Prometheus, Grafana, Elasticsearch, and Kibana.
 
@@ -32,18 +32,21 @@ All services start automatically: PostgreSQL, Redis, Mosquitto, API (with auto-m
 ## Useful Commands
 
 ```bash
-# Start fresh (recommended)
-pnpm docker:start
+# Start fresh (auto-cleans previous containers)
+docker compose up --build
+
+# Start in background
+docker compose up --build -d
 
 # Stop all services
-pnpm docker:stop
-
-# View logs for a specific service
-docker compose logs -f api
-docker compose logs -f web
+docker compose down
 
 # Stop and remove all data (full reset)
 docker compose down -v
+
+# View logs
+docker compose logs -f api
+docker compose logs -f web
 
 # Rebuild a single service
 docker compose up --build -d api
@@ -106,11 +109,8 @@ pnpm --filter @cortexgrid/api test:cov
 
 ### Port already in use
 ```bash
-# Stop all containers and try again
-pnpm docker:stop
-
-# Or find what's using the port
-netstat -ano | findstr :3001
+docker compose down
+docker compose up --build
 ```
 
 ### Database connection failed
@@ -119,10 +119,10 @@ docker compose logs postgres
 docker compose restart postgres
 ```
 
-### Clean start
+### Full reset
 ```bash
 docker compose down -v
-pnpm docker:start
+docker compose up --build
 ```
 
 ### API health check
