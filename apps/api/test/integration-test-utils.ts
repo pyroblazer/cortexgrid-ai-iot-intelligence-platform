@@ -67,23 +67,30 @@ export async function createTestApp(): Promise<INestApplication> {
   return app;
 }
 
-export async function cleanupDatabase(app: INestApplication): Promise<void> {
-  const prisma = app.get(PrismaService);
-  const tableNames = [
-    'AuditLog',
-    'Notification',
-    'Alert',
-    'AlertRule',
-    'Telemetry',
-    'UsageRecord',
-    'Invitation',
-    'Membership',
-    'Device',
-    'Organization',
-    'User',
-  ];
-  for (const table of tableNames) {
-    await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`);
+export async function cleanupDatabase(app: INestApplication | undefined): Promise<void> {
+  if (!app) {
+    return;
+  }
+  try {
+    const prisma = app.get(PrismaService);
+    const tableNames = [
+      'AuditLog',
+      'Notification',
+      'Alert',
+      'AlertRule',
+      'Telemetry',
+      'UsageRecord',
+      'Invitation',
+      'Membership',
+      'Device',
+      'Organization',
+      'User',
+    ];
+    for (const table of tableNames) {
+      await prisma.$executeRawUnsafe(`TRUNCATE TABLE "${table}" CASCADE`);
+    }
+  } catch {
+    // Silently ignore cleanup errors so teardown never masks the real failure
   }
 }
 
@@ -133,7 +140,9 @@ export async function createTestDevice(
   return res.body.data;
 }
 
-export async function closeTestApp(app: INestApplication): Promise<void> {
+export async function closeTestApp(app: INestApplication | undefined): Promise<void> {
   await cleanupDatabase(app);
-  await app.close();
+  if (app) {
+    await app.close();
+  }
 }

@@ -604,7 +604,15 @@
                   "pm.test('Response has latest reading structure', function () {",
                   "    const json = pm.response.json();",
                   "    pm.expect(json.data).to.have.property('deviceId');",
-                  "    pm.expect(json.data).to.have.property('telemetry');",
+                  "    // API returns from Redis cache: { deviceId, metrics, timestamp }",
+                  "    // or from DB fallback: { deviceId, telemetry: { ... } }",
+                  "    if (json.data.telemetry) {",
+                  "        pm.expect(json.data.telemetry).to.have.property('timestamp');",
+                  "        pm.expect(json.data.telemetry).to.have.property('metrics');",
+                  "    } else {",
+                  "        pm.expect(json.data).to.have.property('metrics');",
+                  "        pm.expect(json.data).to.have.property('timestamp');",
+                  "    }",
                   "});"
                 ]
               }

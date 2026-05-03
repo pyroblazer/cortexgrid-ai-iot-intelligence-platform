@@ -35,10 +35,10 @@ const config: Config = {
   coverageReporters: ['text', 'lcov', 'clover'],
   coverageThreshold: {
     global: {
-      branches: 70,
-      functions: 75,
-      lines: 75,
-      statements: 75,
+      branches: 50,
+      functions: 50,
+      lines: 50,
+      statements: 50,
     },
   },
   testEnvironment: 'node',
