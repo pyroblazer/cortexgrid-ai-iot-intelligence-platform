@@ -22,25 +22,25 @@ test.describe('Dashboard', () => {
 
   test('should navigate to devices page', async ({ page }) => {
     await page.click('a[href="/devices"], button:has-text("Devices")');
-    await page.waitForURL('**/devices', { timeout: 5000 });
+    await page.waitForURL(/\/devices/, { timeout: 5000 });
     await expect(page).toHaveURL(/\/devices/);
   });
 
   test('should navigate to alerts page', async ({ page }) => {
     await page.click('a[href="/alerts"], button:has-text("Alerts")');
-    await page.waitForURL('**/alerts', { timeout: 5000 });
+    await page.waitForURL(/\/alerts/, { timeout: 5000 });
     await expect(page).toHaveURL(/\/alerts/);
   });
 
   test('should navigate to AI assistant', async ({ page }) => {
     await page.click('a[href="/ai"], button:has-text("AI")');
-    await page.waitForURL('**/ai', { timeout: 5000 });
+    await page.waitForURL(/\/ai/, { timeout: 5000 });
     await expect(page).toHaveURL(/\/ai/);
   });
 
   test('should navigate to billing', async ({ page }) => {
     await page.click('a[href="/billing"], button:has-text("Billing")');
-    await page.waitForURL('**/billing', { timeout: 5000 });
+    await page.waitForURL(/\/billing/, { timeout: 5000 });
     await expect(page).toHaveURL(/\/billing/);
   });
 

@@ -121,7 +121,7 @@ export default function RegisterPage() {
     try {
       // Combine first and last name into one string for the API
       const name = `${data.firstName} ${data.lastName}`;
-      await apiClient.post("/api/auth/register", {
+      await apiClient.post("/auth/register", {
         name,
         email: data.email,
         password: data.password,

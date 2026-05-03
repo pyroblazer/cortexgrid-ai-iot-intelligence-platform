@@ -71,9 +71,9 @@ describe('ApiClient constructor', () => {
   it('sets baseURL from NEXT_PUBLIC_API_URL env var', async () => {
     const { apiClient } = await importFreshClient('http://localhost:4000');
     const fetchMock = mockFetch(mockResponse(successBody('ok')));
-    await apiClient.get('/api/test');
+    await apiClient.get('/test');
     expect(fetchMock).toHaveBeenCalledWith(
-      expect.stringContaining('http://localhost:4000/api/test'),
+      expect.stringContaining('http://localhost:4000/api/v1/test'),
       expect.anything()
     );
   });
@@ -81,9 +81,9 @@ describe('ApiClient constructor', () => {
   it('defaults baseURL to empty string when env var is not set', async () => {
     const { apiClient } = await importFreshClient(undefined);
     const fetchMock = mockFetch(mockResponse(successBody('ok')));
-    await apiClient.get('/api/test');
+    await apiClient.get('/test');
     expect(fetchMock).toHaveBeenCalledWith(
-      '/api/test',
+      '/api/v1/test',
       expect.anything()
     );
   });
@@ -101,18 +101,18 @@ describe('ApiClient HTTP methods', () => {
   });
 
   it('GET calls fetch with GET method', async () => {
-    await apiClient.get('/api/devices');
+    await apiClient.get('/devices');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/devices',
+      'http://api.test/api/v1/devices',
       expect.objectContaining({ method: 'GET' })
     );
   });
 
   it('POST calls fetch with POST method and JSON body', async () => {
     const body = { name: 'test' };
-    await apiClient.post('/api/devices', body);
+    await apiClient.post('/devices', body);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/devices',
+      'http://api.test/api/v1/devices',
       expect.objectContaining({
         method: 'POST',
         body: JSON.stringify(body),
@@ -122,9 +122,9 @@ describe('ApiClient HTTP methods', () => {
 
   it('PUT calls fetch with PUT method and JSON body', async () => {
     const body = { name: 'updated' };
-    await apiClient.put('/api/devices/123', body);
+    await apiClient.put('/devices/123', body);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/devices/123',
+      'http://api.test/api/v1/devices/123',
       expect.objectContaining({
         method: 'PUT',
         body: JSON.stringify(body),
@@ -134,9 +134,9 @@ describe('ApiClient HTTP methods', () => {
 
   it('PATCH calls fetch with PATCH method and JSON body', async () => {
     const body = { status: 'ONLINE' };
-    await apiClient.patch('/api/devices/123', body);
+    await apiClient.patch('/devices/123', body);
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/devices/123',
+      'http://api.test/api/v1/devices/123',
       expect.objectContaining({
         method: 'PATCH',
         body: JSON.stringify(body),
@@ -145,17 +145,17 @@ describe('ApiClient HTTP methods', () => {
   });
 
   it('DELETE calls fetch with DELETE method', async () => {
-    await apiClient.delete('/api/devices/123');
+    await apiClient.delete('/devices/123');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/devices/123',
+      'http://api.test/api/v1/devices/123',
       expect.objectContaining({ method: 'DELETE' })
     );
   });
 
   it('POST without body does not send body', async () => {
-    await apiClient.post('/api/auth/refresh');
+    await apiClient.post('/auth/refresh');
     expect(fetchMock).toHaveBeenCalledWith(
-      'http://api.test/api/auth/refresh',
+      'http://api.test/api/v1/auth/refresh',
       expect.objectContaining({
         method: 'POST',
         body: undefined,
@@ -177,7 +177,7 @@ describe('ApiClient Authorization header', () => {
 
   it('includes Authorization header when token is in localStorage', async () => {
     localStorage.setItem('cortexgrid_access_token', 'my-token');
-    await apiClient.get('/api/test');
+    await apiClient.get('/test');
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
@@ -189,13 +189,13 @@ describe('ApiClient Authorization header', () => {
   });
 
   it('does not include Authorization header when no token', async () => {
-    await apiClient.get('/api/test');
+    await apiClient.get('/test');
     const callArgs = fetchMock.mock.calls[0][1] as { headers: Record<string, string> };
     expect(callArgs.headers).not.toHaveProperty('Authorization');
   });
 
   it('always includes Content-Type application/json header', async () => {
-    await apiClient.get('/api/test');
+    await apiClient.get('/test');
     expect(fetchMock).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
@@ -226,7 +226,7 @@ describe('ApiClient 401 auto-refresh', () => {
       mockResponse(successBody('retry-result')),
     ]);
 
-    const result = await apiClient.get('/api/protected');
+    const result = await apiClient.get('/protected');
     expect(result).toBe('retry-result');
     expect(fetchMock).toHaveBeenCalledTimes(3); // original + refresh + retry
     // Verify the retry uses the new token
@@ -243,7 +243,7 @@ describe('ApiClient 401 auto-refresh', () => {
       mockResponse('', { status: 401, ok: false }),
     ]);
 
-    await apiClient.get<string>('/api/protected').catch(() => 'errored');
+    await apiClient.get<string>('/protected').catch(() => 'errored');
 
     // After failed refresh, tokens should be cleared
     expect(localStorage.getItem('cortexgrid_access_token')).toBeNull();
@@ -255,7 +255,7 @@ describe('ApiClient 401 auto-refresh', () => {
       mockResponse(errorBody('UNAUTHORIZED', 'No auth'), { status: 401, ok: false })
     );
 
-    await expect(apiClient.get('/api/test')).rejects.toThrow('No auth');
+    await expect(apiClient.get('/test')).rejects.toThrow('No auth');
     expect(fetchMock).toHaveBeenCalledTimes(1); // no refresh attempt
   });
 });
@@ -272,14 +272,14 @@ describe('ApiClient response envelope unwrapping', () => {
   it('unwraps { success: true, data } envelope to return just data', async () => {
     mockFetch(mockResponse(successBody({ id: 1, name: 'device' })));
 
-    const result = await apiClient.get('/api/devices');
+    const result = await apiClient.get('/devices');
     expect(result).toEqual({ id: 1, name: 'device' });
   });
 
   it('throws error message from { success: false } envelope', async () => {
     mockFetch(mockResponse(errorBody('VALIDATION_ERROR', 'Email is invalid')));
 
-    await expect(apiClient.get('/api/test')).rejects.toThrow('Email is invalid');
+    await expect(apiClient.get('/test')).rejects.toThrow('Email is invalid');
   });
 });
 
@@ -300,7 +300,7 @@ describe('ApiClient error handling', () => {
       )
     );
 
-    await expect(apiClient.get('/api/devices/999')).rejects.toThrow('Device not found');
+    await expect(apiClient.get('/devices/999')).rejects.toThrow('Device not found');
   });
 
   it('throws generic error when response body has no error message', async () => {
@@ -308,7 +308,7 @@ describe('ApiClient error handling', () => {
       mockResponse(JSON.stringify({}), { status: 500, ok: false })
     );
 
-    await expect(apiClient.get('/api/test')).rejects.toThrow(
+    await expect(apiClient.get('/test')).rejects.toThrow(
       'Request failed with status 500'
     );
   });
@@ -323,7 +323,7 @@ describe('ApiClient error handling', () => {
     };
     mockFetch(badResponse);
 
-    await expect(apiClient.get('/api/test')).rejects.toThrow(
+    await expect(apiClient.get('/test')).rejects.toThrow(
       'Request failed with status 502'
     );
   });

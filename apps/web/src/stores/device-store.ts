@@ -32,7 +32,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
         ? "?" + new URLSearchParams(params).toString()
         : "";
       const data = await apiClient.get<DeviceResponse[]>(
-        `/api/devices${queryString}`
+        `/devices${queryString}`
       );
       set({ devices: data, isLoading: false });
     } catch (err: unknown) {
@@ -46,7 +46,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
   fetchDevice: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      const data = await apiClient.get<DeviceResponse>(`/api/devices/${id}`);
+      const data = await apiClient.get<DeviceResponse>(`/devices/${id}`);
       set({ selectedDevice: data, isLoading: false });
     } catch (err: unknown) {
       set({
@@ -58,7 +58,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
 
   fetchStats: async () => {
     try {
-      const data = await apiClient.get<DeviceStats>("/api/devices/stats");
+      const data = await apiClient.get<DeviceStats>("/devices/stats");
       set({ stats: data });
     } catch (err: unknown) {
       set({
@@ -70,7 +70,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
   createDevice: async (data: Record<string, unknown>) => {
     set({ isLoading: true, error: null });
     try {
-      const device = await apiClient.post<DeviceResponse>("/api/devices", data);
+      const device = await apiClient.post<DeviceResponse>("/devices", data);
       set((state) => ({
         devices: [...state.devices, device],
         isLoading: false,
@@ -89,7 +89,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
     set({ isLoading: true, error: null });
     try {
       const updated = await apiClient.put<DeviceResponse>(
-        `/api/devices/${id}`,
+        `/devices/${id}`,
         data
       );
       set((state) => ({
@@ -110,7 +110,7 @@ export const useDeviceStore = create<DeviceState>((set) => ({
   deleteDevice: async (id: string) => {
     set({ isLoading: true, error: null });
     try {
-      await apiClient.delete(`/api/devices/${id}`);
+      await apiClient.delete(`/devices/${id}`);
       set((state) => ({
         devices: state.devices.filter((d) => d.id !== id),
         selectedDevice:

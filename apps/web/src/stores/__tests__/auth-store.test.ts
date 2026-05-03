@@ -85,7 +85,7 @@ describe('auth store login', () => {
 
     await useAuthStore.getState().login('test@example.com', 'password123');
 
-    expect(mockedPost).toHaveBeenCalledWith('/api/auth/login', {
+    expect(mockedPost).toHaveBeenCalledWith('/auth/login', {
       email: 'test@example.com',
       password: 'password123',
     });
@@ -150,7 +150,7 @@ describe('auth store register', () => {
       'My Org'
     );
 
-    expect(mockedPost).toHaveBeenCalledWith('/api/auth/register', {
+    expect(mockedPost).toHaveBeenCalledWith('/auth/register', {
       name: 'Test User',
       email: 'test@example.com',
       password: 'password123',
@@ -225,7 +225,7 @@ describe('auth store refresh', () => {
 
     await useAuthStore.getState().refresh();
 
-    expect(mockedPost).toHaveBeenCalledWith('/api/auth/refresh');
+    expect(mockedPost).toHaveBeenCalledWith('/auth/refresh');
     expect(mockedSetTokens).toHaveBeenCalledWith('new-access', 'new-refresh');
 
     const state = useAuthStore.getState();

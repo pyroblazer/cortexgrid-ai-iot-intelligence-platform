@@ -8,7 +8,7 @@ test.describe('Billing', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/dashboard/, { timeout: 10000 });
     await page.goto('/billing');
-    await page.waitForURL('**/billing', { timeout: 5000 });
+    await page.waitForURL(/\/billing/, { timeout: 5000 });
   });
 
   test('should display current plan', async ({ page }) => {

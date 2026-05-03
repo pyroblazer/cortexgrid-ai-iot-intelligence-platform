@@ -80,8 +80,10 @@ class ApiClient {
 
   constructor() {
     // The backend URL comes from the environment variable, or defaults to "" (same-origin).
-    // During development, this might be "http://localhost:4000".
-    this.baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+    // The API uses a global prefix of /api/v1, so we append it here so all endpoint
+    // strings can use relative paths like /auth/login instead of /api/v1/auth/login.
+    const base = process.env.NEXT_PUBLIC_API_URL || "";
+    this.baseUrl = base ? `${base}/api/v1` : "/api/v1";
   }
 
   /**
@@ -139,7 +141,7 @@ class ApiClient {
     if (!refreshToken) return null;
 
     try {
-      const response = await fetch(`${this.baseUrl}/api/auth/refresh`, {
+      const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refreshToken }),

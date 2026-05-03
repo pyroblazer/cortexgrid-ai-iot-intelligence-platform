@@ -85,7 +85,7 @@ describe('device store fetchDevices', () => {
 
     await useDeviceStore.getState().fetchDevices();
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/devices');
+    expect(mockedGet).toHaveBeenCalledWith('/devices');
     const state = useDeviceStore.getState();
     expect(state.devices).toEqual(devices);
     expect(state.isLoading).toBe(false);
@@ -98,7 +98,7 @@ describe('device store fetchDevices', () => {
     await useDeviceStore.getState().fetchDevices({ status: 'ONLINE', type: 'SENSOR' });
 
     expect(mockedGet).toHaveBeenCalledWith(
-      expect.stringContaining('/api/devices?')
+      expect.stringContaining('/devices?')
     );
     const calledUrl = mockedGet.mock.calls[0][0] as string;
     expect(calledUrl).toContain('status=ONLINE');
@@ -145,7 +145,7 @@ describe('device store fetchDevice', () => {
 
     await useDeviceStore.getState().fetchDevice('dev-1');
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/devices/dev-1');
+    expect(mockedGet).toHaveBeenCalledWith('/devices/dev-1');
     const state = useDeviceStore.getState();
     expect(state.selectedDevice).toEqual(mockDevice);
     expect(state.isLoading).toBe(false);
@@ -184,7 +184,7 @@ describe('device store fetchStats', () => {
 
     await useDeviceStore.getState().fetchStats();
 
-    expect(mockedGet).toHaveBeenCalledWith('/api/devices/stats');
+    expect(mockedGet).toHaveBeenCalledWith('/devices/stats');
     expect(useDeviceStore.getState().stats).toEqual(mockStats);
   });
 
@@ -212,7 +212,7 @@ describe('device store createDevice', () => {
 
     const result = await useDeviceStore.getState().createDevice(newDeviceData);
 
-    expect(mockedPost).toHaveBeenCalledWith('/api/devices', newDeviceData);
+    expect(mockedPost).toHaveBeenCalledWith('/devices', newDeviceData);
     expect(result).toEqual(mockDevice);
     expect(useDeviceStore.getState().devices).toEqual([mockDevice]);
     expect(useDeviceStore.getState().isLoading).toBe(false);
@@ -243,7 +243,7 @@ describe('device store updateDevice', () => {
 
     await useDeviceStore.getState().updateDevice('dev-1', { name: 'Updated Sensor' });
 
-    expect(mockedPut).toHaveBeenCalledWith('/api/devices/dev-1', { name: 'Updated Sensor' });
+    expect(mockedPut).toHaveBeenCalledWith('/devices/dev-1', { name: 'Updated Sensor' });
     const state = useDeviceStore.getState();
     expect(state.devices[0]).toEqual(updated);
     expect(state.selectedDevice).toEqual(updated);
@@ -283,7 +283,7 @@ describe('device store deleteDevice', () => {
 
     await useDeviceStore.getState().deleteDevice('dev-1');
 
-    expect(mockedDelete).toHaveBeenCalledWith('/api/devices/dev-1');
+    expect(mockedDelete).toHaveBeenCalledWith('/devices/dev-1');
     expect(useDeviceStore.getState().devices).toEqual([mockDevice2]);
     expect(useDeviceStore.getState().isLoading).toBe(false);
   });

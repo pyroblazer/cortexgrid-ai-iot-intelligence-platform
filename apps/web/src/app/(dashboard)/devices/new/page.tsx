@@ -68,7 +68,7 @@ export default function NewDevicePage() {
           ? JSON.parse(data.metadata)
           : undefined,
       };
-      await apiClient.post("/api/devices", payload);
+      await apiClient.post("/devices", payload);
       router.push("/devices");
     } catch (err: unknown) {
       const message =
