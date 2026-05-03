@@ -8,7 +8,7 @@ test.describe('AI Assistant', () => {
     await page.click('button[type="submit"]');
     await page.waitForURL(/\/dashboard/, { timeout: 10000 });
     await page.goto('/ai');
-    await page.waitForURL('**/ai', { timeout: 5000 });
+    await page.waitForURL(/\/ai/, { timeout: 5000 });
   });
 
   test('should display AI chat interface', async ({ page }) => {

@@ -214,7 +214,7 @@ export default function AIAssistantPage() {
         const response = await apiClient.post<{
           answer: string;
           confidence: number;
-        }>("/api/ai/query", { query: messageText });
+        }>("/ai/query", { query: messageText });
 
         // Add the AI's answer to the chat
         const assistantMessage: ChatMessageData = {

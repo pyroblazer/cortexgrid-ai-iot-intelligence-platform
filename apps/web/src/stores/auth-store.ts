@@ -61,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
             refreshToken: string;
             expiresIn: string;
             user: AuthUser;
-          }>("/api/auth/login", { email, password });
+          }>("/auth/login", { email, password });
 
           // Store tokens in the API client so all future requests include them
           apiClient.setTokens(result.accessToken, result.refreshToken);
@@ -87,7 +87,7 @@ export const useAuthStore = create<AuthState>()(
       ) => {
         set({ isLoading: true });
         try {
-          await apiClient.post("/api/auth/register", {
+          await apiClient.post("/auth/register", {
             name,
             email,
             password,
@@ -118,7 +118,7 @@ export const useAuthStore = create<AuthState>()(
             accessToken: string;
             refreshToken: string;
             user: AuthUser;
-          }>("/api/auth/refresh");
+          }>("/auth/refresh");
 
           apiClient.setTokens(result.accessToken, result.refreshToken);
           set({
