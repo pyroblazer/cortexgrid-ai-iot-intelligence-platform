@@ -172,62 +172,58 @@ export class BillingService {
       apiVersion: '2023-10-16' as any,
     });
 
-    let customerId = organization.stripeCustomerId;
+    try {
+      let customerId = organization.stripeCustomerId;
 
-    // If this org doesn't have a Stripe Customer yet, create one.
-    // The customer record in Stripe links to our organization for future billing.
-    if (!customerId) {
-      // Create a Stripe Customer with the user's email and org metadata.
-      // This links Stripe's billing records back to our organization.
-      const customer = await stripe.customers.create({
-        email,
+      // If this org doesn't have a Stripe Customer yet, create one.
+      if (!customerId) {
+        const customer = await stripe.customers.create({
+          email,
+          metadata: {
+            organizationId,
+            organizationName: organization.name,
+          },
+        });
+
+        customerId = customer.id;
+
+        await this.prisma.organization.update({
+          where: { id: organizationId },
+          data: { stripeCustomerId: customerId },
+        });
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        customer: customerId,
+        payment_method_types: ['card'],
+        line_items: [
+          {
+            price: priceId,
+            quantity: 1,
+          },
+        ],
+        mode: 'subscription',
+        success_url:
+          checkoutDto.successUrl ||
+          `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url:
+          checkoutDto.cancelUrl ||
+          `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/cancel`,
         metadata: {
           organizationId,
-          organizationName: organization.name,
+          plan: checkoutDto.plan,
         },
       });
 
-      customerId = customer.id;
-
-      // Save the Stripe Customer ID so we reuse it for future transactions.
-      await this.prisma.organization.update({
-        where: { id: organizationId },
-        data: { stripeCustomerId: customerId },
-      });
+      return {
+        sessionId: session.id,
+        url: session.url,
+      };
+    } catch (error: any) {
+      throw new BadRequestException(
+        `Billing service error: ${error.message || 'Unknown error'}`,
+      );
     }
-
-    // Create the Checkout Session. This generates a Stripe-hosted payment page.
-    // mode: 'subscription' means recurring billing (not one-time payment).
-    const session = await stripe.checkout.sessions.create({
-      customer: customerId,
-      payment_method_types: ['card'],
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      mode: 'subscription',
-      // URLs Stripe redirects to after the user completes or cancels payment.
-      // {CHECKOUT_SESSION_ID} is a placeholder Stripe replaces with the actual session ID.
-      success_url:
-        checkoutDto.successUrl ||
-        `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url:
-        checkoutDto.cancelUrl ||
-        `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/cancel`,
-      // Embed organization and plan in metadata so the webhook handler
-      // knows which org to update when payment succeeds.
-      metadata: {
-        organizationId,
-        plan: checkoutDto.plan,
-      },
-    });
-
-    return {
-      sessionId: session.id,
-      url: session.url,
-    };
   }
 
   /**
@@ -303,7 +299,8 @@ export class BillingService {
     }
 
     if (!rawBody || !signature) {
-      throw new BadRequestException('Missing webhook payload or signature');
+      this.logger.warn('Stripe webhook received without raw body or signature');
+      return { received: true };
     }
 
     const Stripe = (await import('stripe')).default;
@@ -312,7 +309,6 @@ export class BillingService {
     });
 
     // Verify the webhook signature to ensure it's genuinely from Stripe.
-    // This prevents attackers from sending fake webhook events.
     let event: any;
     try {
       event = stripe.webhooks.constructEvent(
@@ -322,7 +318,7 @@ export class BillingService {
       );
     } catch (err: any) {
       this.logger.error(`Webhook signature verification failed: ${err.message}`);
-      throw new BadRequestException('Invalid webhook signature');
+      return { received: true };
     }
 
     this.logger.log(`Processing Stripe webhook: ${event.type}`);

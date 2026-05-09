@@ -315,7 +315,7 @@ export default function AIAssistantPage() {
                     <input
                       type="text"
                       value={input}
-                      onChange={(e) => setInput(e.target.value)}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInput(e.target.value)}
                       onKeyDown={handleKeyDown}
                       placeholder="Ask about your IoT data..."
                       className="flex-1 rounded-lg border border-dark-300 bg-white px-4 py-2.5 text-sm text-dark-900 placeholder:text-dark-400 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100 dark:placeholder:text-dark-500"
@@ -375,7 +375,7 @@ export default function AIAssistantPage() {
                 </label>
                 <select
                   value={anomalyDevice}
-                  onChange={(e) => setAnomalyDevice(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAnomalyDevice(e.target.value)}
                   className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
                 >
                   <option value="dev-001">Temperature Sensor A1</option>
@@ -389,7 +389,7 @@ export default function AIAssistantPage() {
                 </label>
                 <select
                   value={anomalyMetric}
-                  onChange={(e) => setAnomalyMetric(e.target.value)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAnomalyMetric(e.target.value)}
                   className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
                 >
                   <option value="temperature">Temperature</option>

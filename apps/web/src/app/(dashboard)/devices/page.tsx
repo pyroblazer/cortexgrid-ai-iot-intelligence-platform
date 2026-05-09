@@ -234,7 +234,7 @@ export default function DevicesPage() {
             placeholder="Search devices by name, serial, or location..."
             prefixIcon={<Search className="h-4 w-4" />}
             value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSearch(e.target.value)}
           />
         </div>
         <div className="flex gap-3">
@@ -243,7 +243,7 @@ export default function DevicesPage() {
             <Filter className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-dark-400" />
             <select
               value={statusFilter}
-              onChange={(e) => setStatusFilter(e.target.value)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setStatusFilter(e.target.value)}
               className="h-10 rounded-lg border border-dark-300 bg-white py-2 pl-9 pr-8 text-sm text-dark-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300"
               aria-label="Filter by status"
             >
@@ -257,7 +257,7 @@ export default function DevicesPage() {
           {/* Device type filter dropdown */}
           <select
             value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setTypeFilter(e.target.value)}
             className="h-10 rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-700 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-300"
             aria-label="Filter by type"
           >

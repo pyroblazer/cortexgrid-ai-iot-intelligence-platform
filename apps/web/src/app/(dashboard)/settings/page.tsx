@@ -145,7 +145,7 @@ export default function SettingsPage() {
       render: (row) =>
         row.role !== ("OWNER" as MembershipRole) ? (
           <button
-            onClick={(e) => {
+            onClick={(e: React.MouseEvent) => {
               e.stopPropagation();
               handleRemoveMember(row.id);
             }}
@@ -333,7 +333,7 @@ export default function SettingsPage() {
                 type="email"
                 placeholder="colleague@company.com"
                 value={inviteEmail}
-                onChange={(e) => setInviteEmail(e.target.value)}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setInviteEmail(e.target.value)}
               />
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-dark-700 dark:text-dark-300">
@@ -341,7 +341,7 @@ export default function SettingsPage() {
                 </label>
                 <select
                   value={inviteRole}
-                  onChange={(e) => setInviteRole(e.target.value as MembershipRole)}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setInviteRole(e.target.value as MembershipRole)}
                   className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
                 >
                   <option value="ADMIN">Admin</option>

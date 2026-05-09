@@ -24,8 +24,16 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=deps /app/apps/web/node_modules ./apps/web/node_modules
 COPY --from=deps /app/packages ./packages
-COPY apps/web ./apps/web
-COPY packages ./packages
+COPY apps/web/src ./apps/web/src
+COPY apps/web/public ./apps/web/public
+COPY apps/web/package.json apps/web/tsconfig.json apps/web/next.config.js apps/web/tailwind.config.ts apps/web/postcss.config.js apps/web/next-env.d.ts ./apps/web/
+COPY packages/types/src ./packages/types/src
+COPY packages/types/package.json packages/types/tsconfig.json ./packages/types/
+COPY packages/ui/src ./packages/ui/src
+COPY packages/ui/package.json packages/ui/tsconfig.json packages/ui/tailwind.config.ts packages/ui/.eslintrc.js ./packages/ui/
+COPY packages/eslint-config/index.js packages/eslint-config/nest.js packages/eslint-config/next.js packages/eslint-config/package.json ./packages/eslint-config/
+COPY packages/config/src ./packages/config/src
+COPY packages/config/package.json packages/config/tsconfig.json ./packages/config/
 
 ARG NEXT_PUBLIC_API_URL=http://localhost:3001
 ARG NEXT_PUBLIC_WS_URL=ws://localhost:3001
