@@ -160,7 +160,7 @@ export function DeviceTable({
           <div className="flex items-center gap-1">
             {/* View button: opens the device detail page */}
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onView(row.id);
               }}
@@ -172,7 +172,7 @@ export function DeviceTable({
             </button>
             {/* Edit button: opens the device edit form */}
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onEdit(row.id);
               }}
@@ -185,7 +185,7 @@ export function DeviceTable({
             {/* Delete button: styled with danger colors on hover to signal a destructive action.
                 In production, this should trigger a confirmation dialog before actually deleting. */}
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 onDelete(row.id);
               }}

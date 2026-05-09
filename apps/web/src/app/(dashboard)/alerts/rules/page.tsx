@@ -179,7 +179,7 @@ export default function AlertRulesPage() {
         render: (row) => (
           <div className="flex items-center gap-1">
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 handleToggle(row.id);
               }}
@@ -194,7 +194,7 @@ export default function AlertRulesPage() {
               )}
             </button>
             <button
-              onClick={(e) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => e.stopPropagation()}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-dark-500 hover:bg-dark-100 dark:hover:bg-dark-800"
               title="Edit rule"
               aria-label="Edit rule"
@@ -202,7 +202,7 @@ export default function AlertRulesPage() {
               <Pencil className="h-4 w-4" />
             </button>
             <button
-              onClick={(e) => {
+              onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
                 setSelectedRule(row);
                 setDeleteModalOpen(true);
