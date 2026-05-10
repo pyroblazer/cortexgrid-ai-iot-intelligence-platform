@@ -1,3 +1,14 @@
+// Ensure required environment variables are set before AppModule is imported.
+// JwtStrategy throws at construction time if JWT_ACCESS_SECRET is missing.
+// These defaults are used when running outside CI (where env vars may not be set).
+process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';
+process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret';
+process.env.JWT_ACCESS_EXPIRY ??= '15m';
+process.env.JWT_REFRESH_EXPIRY ??= '7d';
+process.env.DATABASE_URL ??= 'postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid?schema=public';
+process.env.REDIS_HOST ??= 'localhost';
+process.env.REDIS_PORT ??= '6379';
+
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
