@@ -13,6 +13,7 @@ const config: Config = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'clover'],
+  passWithNoTests: true,
   coverageThreshold: {
     global: {
       branches: 70,

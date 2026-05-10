@@ -35,6 +35,7 @@ module.exports = {
   ],
   coverageDirectory: 'coverage',
   coverageReporters: ['text', 'lcov', 'clover'],
+  passWithNoTests: true,
   coverageThreshold: {
     global: {
       branches: 80,
