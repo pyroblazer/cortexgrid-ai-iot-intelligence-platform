@@ -1,45 +1,16 @@
-import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
-import { AppModule } from '../src/app.module';
-import { AllExceptionsFilter } from '../src/common/filters/all-exceptions.filter';
-import { TransformInterceptor } from '../src/common/interceptors/transform.interceptor';
-import { LoggingInterceptor } from '../src/common/interceptors/logging.interceptor';
-import { PrismaService } from '../src/common/prisma/prisma.service';
+import { createTestApp, closeTestApp } from './integration-test-utils';
 
 describe('Health (integration)', () => {
   let app: INestApplication;
 
   beforeAll(async () => {
-    const moduleFixture: TestingModule = await Test.createTestingModule({
-      imports: [AppModule],
-    }).compile();
-
-    app = moduleFixture.createNestApplication();
-    app.setGlobalPrefix('api/v1', { exclude: ['health'] });
-    app.useGlobalPipes(
-      new ValidationPipe({
-        whitelist: true,
-        forbidNonWhitelisted: true,
-        transform: true,
-        transformOptions: { enableImplicitConversion: true },
-      }),
-    );
-    app.useGlobalFilters(new AllExceptionsFilter());
-    app.useGlobalInterceptors(new LoggingInterceptor(), new TransformInterceptor());
-    await app.init();
+    app = await createTestApp();
   }, 30000);
 
   afterAll(async () => {
-    if (app) {
-      try {
-        const prisma = app.get(PrismaService);
-        await prisma.$executeRawUnsafe('TRUNCATE TABLE "User" CASCADE');
-      } catch {
-        // Ignore cleanup errors during teardown
-      }
-      await app.close();
-    }
+    await closeTestApp(app);
   });
 
   it('GET /health should return status with service checks', () => {
