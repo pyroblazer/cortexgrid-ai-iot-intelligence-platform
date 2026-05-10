@@ -299,8 +299,7 @@ export class BillingService {
     }
 
     if (!rawBody || !signature) {
-      this.logger.warn('Stripe webhook received without raw body or signature');
-      return { received: true };
+      throw new BadRequestException('Missing raw body or signature');
     }
 
     const Stripe = (await import('stripe')).default;
