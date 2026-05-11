@@ -56,7 +56,11 @@ COPY --from=build --chown=appuser:appgroup /app/apps/api/prisma ./prisma
 COPY --from=build --chown=appuser:appgroup /app/apps/api/package.json ./
 COPY --chown=appuser:appgroup docker/api-entrypoint.sh ./entrypoint.sh
 
-RUN chmod +x ./entrypoint.sh && node -e "const p=require('./package.json'); delete p.devDependencies; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2))" && npm install
+RUN chmod +x ./entrypoint.sh && \
+    node -e "const p=require('./package.json'); delete p.devDependencies; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2))" && \
+    npm install && \
+    npm install prisma@5 ts-node && \
+    npx prisma generate
 
 USER appuser
 
