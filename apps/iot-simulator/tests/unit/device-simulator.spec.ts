@@ -76,6 +76,7 @@ describe('DeviceSimulator', () => {
     jest.clearAllMocks();
     jest.useFakeTimers();
     jest.clearAllTimers();
+    jest.spyOn(Math, 'random').mockReturnValue(0.5);
     mqttClient = createMockMqttClient();
   });
 
