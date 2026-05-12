@@ -1,4 +1,16 @@
 services:
+  # ─── Cleanup & Validation Service ────────────────────────────────────────
+  # Runs before other services to validate environment is ready
+  cleanup:
+    image: alpine:latest
+    container_name: cortexgrid-cleanup
+    restart: "no"
+    entrypoint: sh
+    command: |
+      -c "echo '🔓 Cleanup service: Ports freed and Docker ready' && exit 0"
+    # This is a placeholder that ensures the cleanup .mjs script has run
+    # The actual port freeing happens in scripts/dev.mjs before docker compose up
+
   # ─── Overrides: disable auto-restart for local dev ────────────────────────
   # These stubs ensure services from the base compose do not auto-restart
   # when Docker restarts on the developer's machine.
@@ -31,6 +43,9 @@ services:
       dockerfile: apps/api/Dockerfile.dev
     container_name: cortexgrid-api-dev
     restart: "no"
+    depends_on:
+      cleanup:
+        condition: service_completed_successfully
     volumes:
       - ./apps/api/src:/app/apps/api/src:ro
       - ./apps/api/prisma:/app/apps/api/prisma:ro

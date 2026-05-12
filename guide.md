@@ -8,6 +8,21 @@ A hands-on walkthrough of every CortexGrid feature using the pre-loaded demo env
 
 ### With Docker
 
+**Recommended: Use the automated dev script**
+
+```bash
+node scripts/dev.mjs
+```
+
+This script automatically:
+- ✅ Frees ports 3000 and 3001 (cross-platform: Windows, Linux, Mac)
+- ✅ Stops and cleans up previous Docker containers
+- ✅ Starts all infrastructure (postgres, redis, mosquitto, etc)
+- ✅ Waits for services to be ready
+- ✅ Runs `pnpm dev` to start all services
+
+**Manual startup** (if you prefer):
+
 ```bash
 docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v --remove-orphans && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up --build
 ```
@@ -15,8 +30,6 @@ docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v --
 Open http://localhost:3000 when the build finishes.
 
 > First build takes a few minutes. Subsequent starts are instant.
-> 
-> **Windows users:** If you encounter port binding errors (`port already in use`), the above command includes proper cleanup. On Windows, `docker compose down -v --remove-orphans` is more reliable than `docker stop && docker compose down`.
 
 ### Without Docker
 
@@ -32,16 +45,16 @@ Open http://localhost:3000.
 
 ### Service URLs
 
-> **Note:** On Windows with Hyper-V/WSL2, port 3001 is often reserved by the OS. The defaults below use safer port numbers (13000, 13001). To use the original ports, edit `.env` and set `API_HOST_PORT=3001` and `WEB_HOST_PORT=3000`.
-
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Frontend | http://localhost:13000 | demo@cortexgrid.io / Demo@1234 |
-| API | http://localhost:13001 | — |
-| Swagger Docs | http://localhost:13001/api/v1/docs | — |
+| Frontend | http://localhost:3000 | demo@cortexgrid.io / Demo@1234 |
+| API | http://localhost:3001 | — |
+| Swagger Docs | http://localhost:3001/api/v1/docs | — |
 | Grafana | http://localhost:3002 | admin / cortexgrid |
 | Prometheus | http://localhost:9090 | — |
 | Kibana | http://localhost:5601 | — |
+
+> **Port conflicts?** If Docker reports ports unavailable, use `node scripts/dev.mjs` which automatically frees ports before startup.
 
 ### Resetting the Sandbox
 
