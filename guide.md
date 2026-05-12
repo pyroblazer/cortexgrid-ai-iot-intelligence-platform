@@ -32,11 +32,13 @@ Open http://localhost:3000.
 
 ### Service URLs
 
+> **Note:** On Windows with Hyper-V/WSL2, port 3001 is often reserved by the OS. The defaults below use safer port numbers (13000, 13001). To use the original ports, edit `.env` and set `API_HOST_PORT=3001` and `WEB_HOST_PORT=3000`.
+
 | Service | URL | Credentials |
 |---------|-----|-------------|
-| Frontend | http://localhost:3000 | demo@cortexgrid.io / Demo@1234 |
-| API | http://localhost:3001 | — |
-| Swagger Docs | http://localhost:3001/api/v1/docs | — |
+| Frontend | http://localhost:13000 | demo@cortexgrid.io / Demo@1234 |
+| API | http://localhost:13001 | — |
+| Swagger Docs | http://localhost:13001/api/v1/docs | — |
 | Grafana | http://localhost:3002 | admin / cortexgrid |
 | Prometheus | http://localhost:9090 | — |
 | Kibana | http://localhost:5601 | — |
