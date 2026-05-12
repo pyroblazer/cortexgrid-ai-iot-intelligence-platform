@@ -18,7 +18,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY packages ./packages
 
-RUN cd apps/api && npx prisma generate
+ENV DATABASE_URL=postgresql://cortexgrid:cortexgrid@postgres:5432/cortexgrid?schema=public
+RUN pnpm --filter @cortexgrid/api run db:generate
 
 EXPOSE 3001 9229
 

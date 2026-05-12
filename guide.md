@@ -9,12 +9,14 @@ A hands-on walkthrough of every CortexGrid feature using the pre-loaded demo env
 ### With Docker
 
 ```bash
-docker compose up --build
+docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml down -v --remove-orphans && docker compose -f docker-compose.yml -f docker/docker-compose.dev.yml up --build
 ```
 
 Open http://localhost:3000 when the build finishes.
 
 > First build takes a few minutes. Subsequent starts are instant.
+> 
+> **Windows users:** If you encounter port binding errors (`port already in use`), the above command includes proper cleanup. On Windows, `docker compose down -v --remove-orphans` is more reliable than `docker stop && docker compose down`.
 
 ### Without Docker
 

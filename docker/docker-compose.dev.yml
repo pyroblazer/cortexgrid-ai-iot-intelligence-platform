@@ -1,12 +1,36 @@
-version: "3.9"
-
 services:
+  # ─── Overrides: disable auto-restart for local dev ────────────────────────
+  # These stubs ensure services from the base compose do not auto-restart
+  # when Docker restarts on the developer's machine.
+  postgres:
+    restart: "no"
+
+  redis:
+    restart: "no"
+
+  mosquitto:
+    restart: "no"
+
+  elasticsearch:
+    restart: "no"
+
+  kibana:
+    restart: "no"
+
+  prometheus:
+    restart: "no"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+
+  grafana:
+    restart: "no"
+
   api:
     build:
       context: .
       dockerfile: apps/api/Dockerfile.dev
     container_name: cortexgrid-api-dev
-    command: sh -c "cd apps/api && pnpm run dev"
+    restart: "no"
     volumes:
       - ./apps/api/src:/app/apps/api/src:ro
       - ./apps/api/prisma:/app/apps/api/prisma:ro
@@ -30,7 +54,7 @@ services:
       context: .
       dockerfile: apps/web/Dockerfile.dev
     container_name: cortexgrid-web-dev
-    command: sh -c "cd apps/web && pnpm run dev"
+    restart: "no"
     volumes:
       - ./apps/web/src:/app/apps/web/src:ro
       - ./apps/web/public:/app/apps/web/public:ro
@@ -53,14 +77,10 @@ services:
       context: .
       dockerfile: apps/iot-simulator/Dockerfile.dev
     container_name: cortexgrid-iot-simulator-dev
-    command: sh -c "cd apps/iot-simulator && pnpm run dev"
+    restart: "no"
     volumes:
       - ./apps/iot-simulator/src:/app/apps/iot-simulator/src:ro
       - ./apps/iot-simulator/tsconfig.json:/app/apps/iot-simulator/tsconfig.json:ro
     environment:
       - NODE_ENV=development
       - MQTT_BROKER_URL=mqtt://mosquitto:1883
-
-  prometheus:
-    volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro

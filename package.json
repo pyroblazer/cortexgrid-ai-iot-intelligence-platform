@@ -20,7 +20,11 @@
     "db:migrate": "turbo run db:migrate",
     "db:seed": "turbo run db:seed",
     "clean": "turbo run clean && rimraf node_modules",
-    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\"",
+    "docker:infra": "node scripts/docker-local.js",
+    "docker:dev": "node scripts/docker-local.js --dev",
+    "docker:prod": "node scripts/docker-local.js --prod",
+    "docker:down": "docker compose down --remove-orphans"
   },
   "devDependencies": {
     "prettier": "^3.2.5",
