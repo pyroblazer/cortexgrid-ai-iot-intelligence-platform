@@ -8,18 +8,24 @@ A hands-on walkthrough of every CortexGrid feature using the pre-loaded demo env
 
 ### With Docker
 
-**Recommended: Use the automated dev script**
+**Recommended: Use the automated dev command**
 
 ```bash
-node scripts/dev.mjs
+pnpm run dev:full
 ```
 
-This script automatically:
+This command automatically:
 - ✅ Frees ports 3000 and 3001 (cross-platform: Windows, Linux, Mac)
 - ✅ Stops and cleans up previous Docker containers
 - ✅ Starts all infrastructure (postgres, redis, mosquitto, etc)
 - ✅ Waits for services to be ready
-- ✅ Runs `pnpm dev` to start all services
+- ✅ Runs `pnpm dev` to start all services in watch mode
+
+**Alternative: Direct script invocation**
+
+```bash
+node scripts/dev.mjs
+```
 
 **Manual startup** (if you prefer):
 
@@ -372,6 +378,16 @@ curl "http://localhost:3001/api/v1/telemetry/device/DEVICE_ID?range=24h" \
 ---
 
 ## Quick Reference
+
+### Development Commands
+
+```bash
+pnpm run dev:full                  # Full stack: Docker + all services (recommended)
+pnpm dev                           # App only (requires Docker already running)
+pnpm run build                     # Build all packages
+pnpm run lint                      # Lint all packages
+pnpm run type-check                # Type check all packages
+```
 
 ### Docker Commands
 

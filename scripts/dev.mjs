@@ -1,4 +1,19 @@
 #!/usr/bin/env node
+/**
+ * CortexGrid Full-Stack Development Setup
+ *
+ * Usage:
+ *   pnpm run dev:full    (recommended - runs via package.json script)
+ *   node scripts/dev.mjs  (direct invocation)
+ *
+ * This script:
+ * - Frees up ports 3000 and 3001 (cross-platform)
+ * - Stops and cleans up previous Docker containers
+ * - Starts infrastructure (postgres, redis, mosquitto, elasticsearch, etc)
+ * - Waits for services to be healthy
+ * - Launches pnpm dev to start all development services in watch mode
+ */
+
 import { execSync, spawn } from 'node:child_process';
 import { platform } from 'node:os';
 
