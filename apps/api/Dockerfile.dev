@@ -21,5 +21,6 @@ COPY packages ./packages
 EXPOSE 3001 9229
 
 ENV NODE_ENV=development
+ENV PATH=/app/node_modules/.bin:$PATH
 
 CMD ["sh", "-c", "pnpm --filter @cortexgrid/api run dev"]

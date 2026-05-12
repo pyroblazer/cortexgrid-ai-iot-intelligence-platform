@@ -18,5 +18,6 @@ COPY apps/iot-simulator ./apps/iot-simulator
 COPY packages ./packages
 
 ENV NODE_ENV=development
+ENV PATH=/app/node_modules/.bin:$PATH
 
 CMD ["sh", "-c", "pnpm --filter @cortexgrid/iot-simulator run dev"]
