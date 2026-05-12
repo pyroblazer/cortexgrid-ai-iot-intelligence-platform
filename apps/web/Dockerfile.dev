@@ -21,4 +21,4 @@ EXPOSE 3000 9229
 
 ENV NODE_ENV=development
 
-CMD ["sh", "-c", "cd apps/web && pnpm run dev"]
+CMD ["sh", "-c", "pnpm --filter @cortexgrid/web run dev"]

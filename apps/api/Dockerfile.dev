@@ -18,11 +18,8 @@ RUN pnpm install --frozen-lockfile
 COPY apps/api ./apps/api
 COPY packages ./packages
 
-ENV DATABASE_URL=postgresql://cortexgrid:cortexgrid@postgres:5432/cortexgrid?schema=public
-RUN pnpm --filter @cortexgrid/api run db:generate
-
 EXPOSE 3001 9229
 
 ENV NODE_ENV=development
 
-CMD ["sh", "-c", "cd apps/api && pnpm run dev"]
+CMD ["sh", "-c", "pnpm --filter @cortexgrid/api run dev"]

@@ -19,4 +19,4 @@ COPY packages ./packages
 
 ENV NODE_ENV=development
 
-CMD ["sh", "-c", "cd apps/iot-simulator && pnpm run dev"]
+CMD ["sh", "-c", "pnpm --filter @cortexgrid/iot-simulator run dev"]
