@@ -197,10 +197,30 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
 
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+      mosquitto:
+        image: eclipse-mosquitto:2
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "exit 0"
+          --health-interval 5s
+          --health-retries 3
+
     env:
       DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
       DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       MQTT_BROKER_URL: mqtt://localhost:1883
@@ -208,6 +228,11 @@ jobs:
       PORT: 3001
 
     steps:
+      - name: Configure Mosquitto
+        run: |
+          docker exec $(docker ps -q --filter ancestor=eclipse-mosquitto:2) \
+            sh -c 'printf "listener 1883\nallow_anonymous true\n" > /mosquitto/config/mosquitto.conf && mosquitto_ctrl reload' || true
+          sleep 1
       - name: Checkout repository
         uses: actions/checkout@v4
 
@@ -336,7 +361,8 @@ jobs:
             --reporters cli,htmlextra \
             --reporter-htmlextra-export newman-report.html \
             --delay-request 500 \
-            --timeout 30000 \
+            --timeout-request 15000 \
+            --timeout-script 5000 \
             --bail
 
       - name: Upload Newman report
