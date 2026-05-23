@@ -48,3 +48,11 @@ pnpm-debug.log*
 
 # TypeScript incremental build cache
 *.tsbuildinfo
+
+# Claude Code
+.claude
+.agents
+
+# Test reports
+newman-report.html
+skills-lock.json
