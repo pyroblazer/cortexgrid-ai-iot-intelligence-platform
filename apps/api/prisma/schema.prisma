@@ -151,6 +151,8 @@ model AlertRule {
   updatedAt       DateTime      @updatedAt
   alerts          Alert[]
   organization    Organization  @relation(fields: [organizationId], references: [id])
+
+  @@unique([organizationId, name])
 }
 
 model UsageRecord {
