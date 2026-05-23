@@ -15,18 +15,7 @@ export class RedisService implements OnModuleDestroy {
   private readonly channelCallbacks = new Map<string, (msg: string) => void>();
 
   constructor(private readonly configService: ConfigService) {
-    const baseOptions = {
-      host: this.configService.get<string>('REDIS_HOST', 'localhost'),
-      port: this.configService.get<number>('REDIS_PORT', 6379),
-      password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
-      db: this.configService.get<number>('REDIS_DB', 0),
-      tls: this.configService.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
-      retryStrategy: (times: number) => Math.min(times * 50, 2000),
-      maxRetriesPerRequest: this.configService.get<number>('REDIS_MAX_RETRIES', 3),
-      connectTimeout: this.configService.get<number>('REDIS_CONNECT_TIMEOUT', 5000),
-    };
-
-    this.client = new Redis(baseOptions);
+    this.client = new Redis(this.buildConnectionOptions() as any);
 
     this.client.on('connect', () => this.logger.log('Redis client connected'));
     this.client.on('error', (err) =>
@@ -34,7 +23,9 @@ export class RedisService implements OnModuleDestroy {
     );
   }
 
-  private getConnectionOptions() {
+  private buildConnectionOptions(): string | object {
+    const url = this.configService.get<string>('REDIS_URL');
+    if (url) return url;
     return {
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
       port: this.configService.get<number>('REDIS_PORT', 6379),
@@ -48,14 +39,14 @@ export class RedisService implements OnModuleDestroy {
 
   private ensurePublisher(): Redis {
     if (!this.publisher) {
-      this.publisher = new Redis(this.getConnectionOptions());
+      this.publisher = new Redis(this.buildConnectionOptions() as any);
     }
     return this.publisher;
   }
 
   private ensureSubscriber(): Redis {
     if (!this.subscriber) {
-      this.subscriber = new Redis(this.getConnectionOptions());
+      this.subscriber = new Redis(this.buildConnectionOptions() as any);
       // Single message handler dispatches to per-channel callbacks (fixes listener leak)
       this.subscriber.on('message', (channel, msg) => {
         const cb = this.channelCallbacks.get(channel);

@@ -9,6 +9,7 @@ const config: Config = {
   transform: {
     '^.+\\.(t|j)s$': 'ts-jest',
   },
+  setupFiles: ['<rootDir>/test/jest.integration.setup.ts'],
   collectCoverageFrom: [
     'src/**/*.(t|j)s',
     '!src/main.ts',

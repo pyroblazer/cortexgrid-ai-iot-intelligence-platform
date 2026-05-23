@@ -1,0 +1,22 @@
+// Jest integration test setup - runs before all tests
+// This file is loaded before any tests to ensure environment variables are set
+
+// Load test environment variables
+require('dotenv').config({ path: '.env.test' });
+
+// Set required environment variables with defaults for local testing
+process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';
+process.env.JWT_REFRESH_SECRET ??= 'test-refresh-secret';
+process.env.JWT_ACCESS_EXPIRY ??= '15m';
+process.env.JWT_REFRESH_EXPIRY ??= '7d';
+
+// Only set DATABASE_URL default if not already set (allows CI to override)
+if (!process.env.DATABASE_URL) {
+  process.env.DATABASE_URL = 'postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid?schema=public';
+}
+
+// REDIS_URL (e.g. Upstash rediss://) takes priority over host/port
+if (!process.env.REDIS_URL) {
+  process.env.REDIS_HOST ??= 'localhost';
+  process.env.REDIS_PORT ??= '6379';
+}
