@@ -14,8 +14,6 @@ import type { QueueOptions } from 'bullmq';
       useFactory: (config: ConfigService): QueueOptions => {
         const url = config.get<string>('REDIS_URL');
         if (url) {
-          // Log when using REDIS_URL (Upstash)
-          console.log('[QueueModule] Using REDIS_URL for BullMQ connection');
           // Create Redis instance from URL for BullMQ
           // ioredis auto-detects TLS from rediss:// scheme
           const redis = new Redis(url, {
@@ -24,8 +22,6 @@ import type { QueueOptions } from 'bullmq';
           });
           return { connection: redis };
         }
-        // Log when falling back to host/port (localhost)
-        console.log('[QueueModule] Using REDIS_HOST/PORT for BullMQ connection');
         return {
           connection: {
             host: config.get<string>('REDIS_HOST', 'localhost'),

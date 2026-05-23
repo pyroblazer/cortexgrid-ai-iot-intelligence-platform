@@ -22,7 +22,6 @@ import { RetentionProcessor } from './processors/retention.processor';
       useFactory: (config: ConfigService) => {
         const url = config.get<string>('REDIS_URL');
         if (url) {
-          console.log('[QueueWorkerModule] Using REDIS_URL for BullMQ connection');
           // Create Redis instance from URL for BullMQ
           // ioredis auto-detects TLS from rediss:// scheme
           const redis = new Redis(url, {
@@ -31,7 +30,6 @@ import { RetentionProcessor } from './processors/retention.processor';
           });
           return { connection: redis };
         }
-        console.log('[QueueWorkerModule] Using REDIS_HOST/PORT for BullMQ connection');
         return {
           connection: {
             host: config.get<string>('REDIS_HOST', 'localhost'),

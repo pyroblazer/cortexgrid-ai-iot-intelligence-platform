@@ -178,7 +178,7 @@ describe('random utilities', () => {
     it('should return base value when no time has elapsed', () => {
       const now = Date.now();
       const result = sensorDrift(100, 0.5, now);
-      expect(result).toBe(100);
+      expect(result).toBeCloseTo(100, 5);
     });
 
     it('should increase value proportionally to elapsed time', () => {

@@ -347,12 +347,11 @@ jobs:
           path: newman-report.html
           retention-days: 7
 
-  # ─── E2E Tests (Playwright) — Sharded for parallel execution ───────────
-  e2e-shard-1:
-    name: E2E Shard 1/3
+  # ─── E2E Setup ──────────────────────────────────────────────────────────
+  e2e-setup:
+    name: E2E Setup
     needs: setup
     runs-on: ubuntu-latest
-    timeout-minutes: 15
 
     env:
       DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
@@ -402,6 +401,56 @@ jobs:
 
       - name: Seed database
         run: cd apps/api && npx prisma db seed
+
+  # ─── E2E Tests (Playwright) — Sharded for parallel execution ───────────
+  e2e-shard-1:
+    name: E2E Shard 1/3
+    needs: [setup, e2e-setup]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      CORS_ORIGIN: "*"
+      PORT: 3001
+      MQTT_BROKER_URL: mqtt://localhost:1883
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Build API
+        run: pnpm --filter @cortexgrid/api build
 
       - name: Start API server
         run: |
@@ -468,7 +517,7 @@ jobs:
 
   e2e-shard-2:
     name: E2E Shard 2/3
-    needs: setup
+    needs: [setup, e2e-setup]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -514,12 +563,6 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
-
-      - name: Run database migrations
-        run: cd apps/api && npx prisma migrate deploy
-
-      - name: Seed database
-        run: cd apps/api && npx prisma db seed
 
       - name: Start API server
         run: |
@@ -586,7 +629,7 @@ jobs:
 
   e2e-shard-3:
     name: E2E Shard 3/3
-    needs: setup
+    needs: [setup, e2e-setup]
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
@@ -632,12 +675,6 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
-
-      - name: Run database migrations
-        run: cd apps/api && npx prisma migrate deploy
-
-      - name: Seed database
-        run: cd apps/api && npx prisma db seed
 
       - name: Start API server
         run: |
@@ -814,7 +851,7 @@ jobs:
   # ─── Deploy to Production ──────────────────────────────────────────────
   deploy:
     name: Deploy to Production
-    needs: [lint, type-check, unit-tests, integration-tests, api-tests, e2e-shard-1, e2e-shard-2, e2e-shard-3, build]
+    needs: [lint, type-check, unit-tests, integration-tests, api-tests, e2e-setup, e2e-shard-1, e2e-shard-2, e2e-shard-3, build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production

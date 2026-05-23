@@ -192,8 +192,10 @@ async function main() {
   await prisma.telemetry.createMany({ data: telemetryData });
 
   // ── Create sample alert rules ───────────────────────────────────────────
-  const tempRule = await prisma.alertRule.create({
-    data: {
+  const tempRule = await prisma.alertRule.upsert({
+    where: { organizationId_name: { organizationId: organization.id, name: "High Temperature Alert" } },
+    update: {},
+    create: {
       organizationId: organization.id,
       name: "High Temperature Alert",
       description: "Triggers when temperature exceeds 25 celsius",
@@ -208,8 +210,10 @@ async function main() {
     },
   });
 
-  const pressureRule = await prisma.alertRule.create({
-    data: {
+  const pressureRule = await prisma.alertRule.upsert({
+    where: { organizationId_name: { organizationId: organization.id, name: "Device Offline Alert" } },
+    update: {},
+    create: {
       organizationId: organization.id,
       name: "Device Offline Alert",
       description: "Triggers when a critical device goes offline",
@@ -258,6 +262,7 @@ async function main() {
         resolvedAt: new Date(Date.now() - 30 * 60 * 1000),
       },
     ],
+    skipDuplicates: true,
   });
 
   // ── Create sample notifications ─────────────────────────────────────────
@@ -280,11 +285,14 @@ async function main() {
         isRead: false,
       },
     ],
+    skipDuplicates: true,
   });
 
   // ── Create usage record ─────────────────────────────────────────────────
-  await prisma.usageRecord.create({
-    data: {
+  await prisma.usageRecord.upsert({
+    where: { organizationId_period: { organizationId: organization.id, period: new Date(now) } },
+    update: {},
+    create: {
       organizationId: organization.id,
       period: new Date(now),
       deviceCount: 3,
