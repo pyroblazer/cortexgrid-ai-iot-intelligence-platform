@@ -337,9 +337,14 @@ export default function SettingsPage() {
                     const file = (e.target as HTMLInputElement).files?.[0];
                     if (!file) return;
                     try {
-                      const { useUploadThing } = await import("@/lib/uploadthing");
-                      const { startUpload } = useUploadThing("logoUploader");
-                      const result = await startUpload([file]);
+                      const formData = new FormData();
+                      formData.append("file", file);
+                      const response = await fetch("/api/uploadthing/upload", {
+                        method: "POST",
+                        body: formData,
+                      });
+                      if (!response.ok) throw new Error("Upload failed");
+                      const result = await response.json();
                       if (result?.[0]?.url) {
                         await apiClient.patch("/organizations/current", { logoUrl: result[0].url });
                         alert("Logo uploaded successfully!");

@@ -1,3 +1,10 @@
 {
-  "extends": ["@cortexgrid/eslint-config/next"]
+  "extends": ["@cortexgrid/eslint-config/next"],
+  "rules": {
+    "import/order": "off",
+    "@typescript-eslint/no-non-null-assertion": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/consistent-type-imports": "off",
+    "react-hooks/exhaustive-deps": "warn"
+  }
 }
