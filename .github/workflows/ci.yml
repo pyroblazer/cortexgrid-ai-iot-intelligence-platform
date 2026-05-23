@@ -197,35 +197,10 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: cortexgrid
-          POSTGRES_PASSWORD: cortexgrid
-          POSTGRES_DB: cortexgrid_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       MQTT_BROKER_URL: mqtt://localhost:1883
@@ -264,8 +239,6 @@ jobs:
 
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
 
       - name: Run integration tests with coverage
         run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover --forceExit
@@ -284,35 +257,10 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: cortexgrid
-          POSTGRES_PASSWORD: cortexgrid
-          POSTGRES_DB: cortexgrid_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -406,35 +354,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: cortexgrid
-          POSTGRES_PASSWORD: cortexgrid
-          POSTGRES_DB: cortexgrid_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -549,35 +472,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: cortexgrid
-          POSTGRES_PASSWORD: cortexgrid
-          POSTGRES_DB: cortexgrid_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -692,35 +590,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
 
-    services:
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_USER: cortexgrid
-          POSTGRES_PASSWORD: cortexgrid
-          POSTGRES_DB: cortexgrid_test
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd pg_isready
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
-      redis:
-        image: redis:7-alpine
-        ports:
-          - 6379:6379
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-
     env:
-      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
-      REDIS_HOST: localhost
-      REDIS_PORT: 6379
+      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
+      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"

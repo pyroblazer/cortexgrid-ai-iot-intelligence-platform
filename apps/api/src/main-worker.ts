@@ -10,7 +10,7 @@
  * The REST API runs separately on Vercel serverless (see api/index.ts).
  */
 import { NestFactory, Reflector } from '@nestjs/core';
-import { ValidationPipe } from '@nestjs/common';
+import { Logger, ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import helmet from 'helmet';
 import { AppWorkerModule } from './app.worker.module';
@@ -60,17 +60,18 @@ async function bootstrap() {
 
   app.enableShutdownHooks();
 
+  const logger = new Logger('Bootstrap');
+
   await app.listen(port);
-  console.log(`CortexGrid Worker running on port ${port}`);
+  logger.log(`CortexGrid Worker running on port ${port}`);
 
   // Graceful shutdown for Render's spin-down behavior
   const shutdown = async (signal: string) => {
-    console.log(`Received ${signal}, shutting down gracefully...`);
+    logger.log(`Received ${signal}, shutting down gracefully...`);
     await app.close();
-    process.exit(0);
   };
-  process.on('SIGTERM', () => shutdown('SIGTERM'));
-  process.on('SIGINT', () => shutdown('SIGINT'));
+  process.on('SIGTERM', () => { void shutdown('SIGTERM'); });
+  process.on('SIGINT', () => { void shutdown('SIGINT'); });
 }
 
 bootstrap().catch((err) => {
