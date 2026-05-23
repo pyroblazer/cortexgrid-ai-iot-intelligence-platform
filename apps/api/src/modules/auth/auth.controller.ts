@@ -178,6 +178,7 @@ export class AuthController {
 
   @Public()
   @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Request a password reset link' })
   @ApiResponse({ status: 200, description: 'Reset link sent if email exists' })
   async forgotPassword(@Body() dto: ForgotPasswordDto) {

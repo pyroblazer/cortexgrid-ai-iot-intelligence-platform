@@ -4,7 +4,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import Redis from 'ioredis';
+import Redis, { RedisOptions } from 'ioredis';
 
 @Injectable()
 export class RedisService implements OnModuleDestroy {
@@ -15,7 +15,7 @@ export class RedisService implements OnModuleDestroy {
   private readonly channelCallbacks = new Map<string, (msg: string) => void>();
 
   constructor(private readonly configService: ConfigService) {
-    this.client = new Redis(this.buildConnectionOptions() as any);
+    this.client = this.createRedisClient();
 
     this.client.on('connect', () => this.logger.log('Redis client connected'));
     this.client.on('error', (err) =>
@@ -23,10 +23,21 @@ export class RedisService implements OnModuleDestroy {
     );
   }
 
-  private buildConnectionOptions(): string | object {
+  private createRedisClient(): Redis {
     const url = this.configService.get<string>('REDIS_URL');
-    if (url) return url;
-    return {
+    const baseOptions: RedisOptions = {
+      retryStrategy: (times: number) => Math.min(times * 50, 2000),
+      maxRetriesPerRequest: null,
+    };
+
+    if (url) {
+      this.logger.log('Using REDIS_URL for Redis connection');
+      // Pass URL as first arg to ioredis — it auto-detects TLS from rediss://
+      return new Redis(url, baseOptions);
+    }
+
+    this.logger.log('Using REDIS_HOST/PORT for Redis connection');
+    return new Redis({
       host: this.configService.get<string>('REDIS_HOST', 'localhost'),
       port: this.configService.get<number>('REDIS_PORT', 6379),
       password: this.configService.get<string>('REDIS_PASSWORD') || undefined,
@@ -34,19 +45,19 @@ export class RedisService implements OnModuleDestroy {
       tls: this.configService.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
       retryStrategy: (times: number) => Math.min(times * 50, 2000),
       maxRetriesPerRequest: this.configService.get<number>('REDIS_MAX_RETRIES', 3),
-    };
+    });
   }
 
   private ensurePublisher(): Redis {
     if (!this.publisher) {
-      this.publisher = new Redis(this.buildConnectionOptions() as any);
+      this.publisher = this.createRedisClient();
     }
     return this.publisher;
   }
 
   private ensureSubscriber(): Redis {
     if (!this.subscriber) {
-      this.subscriber = new Redis(this.buildConnectionOptions() as any);
+      this.subscriber = this.createRedisClient();
       // Single message handler dispatches to per-channel callbacks (fixes listener leak)
       this.subscriber.on('message', (channel, msg) => {
         const cb = this.channelCallbacks.get(channel);

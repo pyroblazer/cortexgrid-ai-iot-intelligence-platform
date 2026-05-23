@@ -514,7 +514,7 @@ export class AuthService {
       }
     }
 
-    return { message: 'If an account with that email exists, a reset link has been sent.' };
+    return { success: true, message: 'If an account with that email exists, a reset link has been sent.' };
   }
 
   /**

@@ -3,6 +3,7 @@ import { BullModule } from '@nestjs/bullmq';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RetentionProcessor } from './processors/retention.processor';
 import { PrismaModule } from '../prisma/prisma.module';
+import Redis from 'ioredis';
 import type { QueueOptions } from 'bullmq';
 
 @Module({
@@ -13,8 +14,18 @@ import type { QueueOptions } from 'bullmq';
       useFactory: (config: ConfigService): QueueOptions => {
         const url = config.get<string>('REDIS_URL');
         if (url) {
-          return { connection: url as QueueOptions['connection'] };
+          // Log when using REDIS_URL (Upstash)
+          console.log('[QueueModule] Using REDIS_URL for BullMQ connection');
+          // Create Redis instance from URL for BullMQ
+          // ioredis auto-detects TLS from rediss:// scheme
+          const redis = new Redis(url, {
+            retryStrategy: (times: number) => Math.min(times * 50, 2000),
+            maxRetriesPerRequest: null,
+          });
+          return { connection: redis };
         }
+        // Log when falling back to host/port (localhost)
+        console.log('[QueueModule] Using REDIS_HOST/PORT for BullMQ connection');
         return {
           connection: {
             host: config.get<string>('REDIS_HOST', 'localhost'),
