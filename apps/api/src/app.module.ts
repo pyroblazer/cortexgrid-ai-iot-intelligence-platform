@@ -80,7 +80,7 @@ function validateConfig() {
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '../../.env'],
+      envFilePath: ['.env.test', '.env', '../../.env'],
       validate: () => {
         validateConfig();
         return process.env;

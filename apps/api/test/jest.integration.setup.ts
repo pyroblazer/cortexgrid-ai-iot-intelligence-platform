@@ -1,8 +1,21 @@
 // Jest integration test setup - runs before all tests
 // This file is loaded before any tests to ensure environment variables are set
 
-// Load test environment variables
-require('dotenv').config({ path: '.env.test' });
+// Load test environment variables with absolute path
+const path = require('path');
+const envTestPath = path.join(__dirname, '..', '.env.test');
+require('dotenv').config({ path: envTestPath });
+
+// Critical: Verify REDIS_URL was loaded
+if (!process.env.REDIS_URL) {
+  throw new Error(`REDIS_URL not found after loading ${envTestPath}. Current cwd: ${process.cwd()}`);
+}
+
+// Log successful load (visible in test output)
+console.log('✓ Environment loaded:', {
+  REDIS_URL: process.env.REDIS_URL ? 'Set (Upstash)' : 'Missing',
+  DATABASE_URL: process.env.DATABASE_URL ? 'Set (Neon)' : 'Missing',
+});
 
 // Set required environment variables with defaults for local testing
 process.env.JWT_ACCESS_SECRET ??= 'test-access-secret';
@@ -15,8 +28,3 @@ if (!process.env.DATABASE_URL) {
   process.env.DATABASE_URL = 'postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid?schema=public';
 }
 
-// REDIS_URL (e.g. Upstash rediss://) takes priority over host/port
-if (!process.env.REDIS_URL) {
-  process.env.REDIS_HOST ??= 'localhost';
-  process.env.REDIS_PORT ??= '6379';
-}
