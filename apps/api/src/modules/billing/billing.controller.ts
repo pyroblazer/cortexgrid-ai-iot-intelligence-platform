@@ -3,6 +3,8 @@ import {
   Get,
   Post,
   Body,
+  Param,
+  Res,
   UseGuards,
   Req,
   RawBodyRequest,
@@ -20,16 +22,20 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { BillingService } from './billing.service';
+import { InvoicePdfService } from '../../common/pdf/invoice-pdf.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { Public } from '../../common/decorators/public.decorator';
 import { CreateCheckoutDto, CreatePortalDto } from './dto/checkout.dto';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 
 @ApiTags('Billing')
 @Controller('billing')
 export class BillingController {
-  constructor(private readonly billingService: BillingService) {}
+  constructor(
+    private readonly billingService: BillingService,
+    private readonly invoicePdfService: InvoicePdfService,
+  ) {}
 
   @Get('subscription')
   @UseGuards(JwtAuthGuard)
@@ -113,6 +119,31 @@ export class BillingController {
       page: parseInt(page || '1', 10),
       limit: parseInt(limit || '20', 10),
     });
+  }
+
+  @Get('invoices/:id/pdf')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Download invoice PDF' })
+  @ApiResponse({ status: 200, description: 'Invoice PDF generated' })
+  async getInvoicePdf(
+    @CurrentUser('organizationId') organizationId: string,
+    @Param('id') invoiceId: string,
+    @Res() res: Response,
+  ) {
+    const usageRecord = await this.billingService.getInvoice(invoiceId, organizationId);
+    const pdfBuffer = await this.invoicePdfService.generateInvoice({
+      id: usageRecord.id,
+      date: usageRecord.createdAt.toISOString(),
+      amount: 0,
+      plan: '',
+      orgName: organizationId,
+      items: [{ description: 'Service usage', quantity: 1, unitPrice: 0, total: 0 }],
+    });
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="invoice-${invoiceId}.pdf"`);
+    res.send(pdfBuffer);
   }
 
   @Post('webhook')

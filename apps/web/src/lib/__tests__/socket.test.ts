@@ -42,8 +42,8 @@ describe('socket module', () => {
         expect.objectContaining({
           autoConnect: false,
           reconnection: true,
-          reconnectionAttempts: 10,
-          reconnectionDelayMax: 10000,
+          reconnectionAttempts: 20,
+          reconnectionDelayMax: 30000,
         })
       );
     });
@@ -129,17 +129,19 @@ describe('socket module', () => {
   });
 
   describe('subscribeToTelemetry', () => {
-    it('registers listener for the correct telemetry event', () => {
+    it('emits subscribe:device and registers listener for telemetry:update', () => {
       const callback = jest.fn();
       socketModule.subscribeToTelemetry('dev-001', callback);
-      expect(mockOn).toHaveBeenCalledWith('telemetry:dev-001', callback);
+      expect(mockEmit).toHaveBeenCalledWith('subscribe:device', 'dev-001');
+      expect(mockOn).toHaveBeenCalledWith('telemetry:update', callback);
     });
 
-    it('returns unsubscribe that removes the listener', () => {
+    it('returns unsubscribe that emits unsubscribe:device and removes the listener', () => {
       const callback = jest.fn();
       const unsubscribe = socketModule.subscribeToTelemetry('dev-001', callback);
       unsubscribe();
-      expect(mockOff).toHaveBeenCalledWith('telemetry:dev-001', callback);
+      expect(mockOff).toHaveBeenCalledWith('telemetry:update', callback);
+      expect(mockEmit).toHaveBeenCalledWith('unsubscribe:device', 'dev-001');
     });
   });
 });

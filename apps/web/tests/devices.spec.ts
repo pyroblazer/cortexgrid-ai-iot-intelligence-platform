@@ -26,17 +26,36 @@ test.describe('Devices', () => {
   test('should filter devices by type', async ({ page }) => {
     const filterSelect = page.locator('select[aria-label="Filter by type"]');
     if (await filterSelect.isVisible()) {
+      const rowsBefore = await page.locator('table tbody tr').count();
       await filterSelect.selectOption('SENSOR');
       await page.waitForTimeout(500);
+      const rowsAfter = await page.locator('table tbody tr').count();
+      // After filtering, row count should be <= before (might be equal if all are SENSOR)
+      expect(rowsAfter).toBeLessThanOrEqual(rowsBefore);
+    } else {
+      // If no filter select, the table should still be visible
+      await expect(page.locator('table, [data-testid="device-table"]')).toBeVisible();
     }
   });
 
   test('should navigate to device detail', async ({ page }) => {
-    const viewButton = page.locator('button[aria-label^="View"]').first();
+    // Wait for table rows to load
+    const firstRow = page.locator('table tbody tr').first();
+    await expect(firstRow).toBeVisible({ timeout: 5000 });
+
+    // Click the first row or view button to navigate to detail
+    const viewButton = firstRow.locator('button[aria-label^="View"], button:has-text("View")').first();
     if (await viewButton.isVisible()) {
       await viewButton.click();
-      await page.waitForURL(/\/devices\//, { timeout: 10000 });
+    } else {
+      // Click the row itself if no view button
+      await firstRow.click();
     }
+    await page.waitForURL(/\/devices\/[^/]+$/, { timeout: 10000 });
+    await expect(page).toHaveURL(/\/devices\/[^/]+$/);
+
+    // Assert device info card is visible
+    await expect(page.locator('text=Device Information')).toBeVisible({ timeout: 5000 });
   });
 
   test('should navigate to new device page', async ({ page }) => {

@@ -1,11 +1,16 @@
-import { redirect } from "next/navigation";
+"use client";
+
+import { useEffect } from "react";
+import { useRouter } from "next/navigation";
+import { useAuthStore } from "@/stores/auth-store";
 
 export default function HomePage() {
-  const isAuthenticated = false;
+  const router = useRouter();
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
 
-  if (isAuthenticated) {
-    redirect("/dashboard");
-  }
+  useEffect(() => {
+    router.replace(isAuthenticated ? "/dashboard" : "/login");
+  }, [isAuthenticated, router]);
 
-  redirect("/login");
+  return null;
 }

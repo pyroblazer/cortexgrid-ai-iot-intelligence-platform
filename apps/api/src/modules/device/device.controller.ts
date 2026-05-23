@@ -17,11 +17,15 @@ import {
   ApiParam,
   ApiQuery,
 } from '@nestjs/swagger';
+import { MembershipRole } from '@prisma/client';
 import { DeviceService } from './device.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
+import { RolesGuard } from '../../common/guards/roles.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
+import { Roles } from '../../common/decorators/roles.decorator';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
+import { SendCommandDto } from './dto/send-command.dto';
 import { AuditAction } from '../../common/decorators/audit-action.decorator';
 
 @ApiTags('Devices')
@@ -71,6 +75,13 @@ export class DeviceController {
     });
   }
 
+  @Get('stats')
+  @ApiOperation({ summary: 'Get dashboard stats for the organization' })
+  @ApiResponse({ status: 200, description: 'Organization device stats' })
+  async getStats(@CurrentUser('organizationId') organizationId: string) {
+    return this.deviceService.getStats(organizationId);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Get device details' })
   @ApiResponse({ status: 200, description: 'Device details retrieved' })
@@ -92,6 +103,22 @@ export class DeviceController {
     @Param('id') id: string,
   ) {
     return this.deviceService.getStatus(organizationId, id);
+  }
+
+  @Post(':id/commands')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(MembershipRole.ADMIN)
+  @ApiOperation({ summary: 'Send a command to a device' })
+  @ApiResponse({ status: 200, description: 'Command sent successfully' })
+  @ApiResponse({ status: 403, description: 'Insufficient permissions' })
+  @ApiResponse({ status: 404, description: 'Device not found' })
+  @ApiParam({ name: 'id', description: 'Device ID' })
+  async sendCommand(
+    @CurrentUser('organizationId') organizationId: string,
+    @Param('id') deviceId: string,
+    @Body() dto: SendCommandDto,
+  ) {
+    return this.deviceService.sendCommand(organizationId, deviceId, dto);
   }
 
   @Patch(':id')

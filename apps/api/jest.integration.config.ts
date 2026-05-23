@@ -35,9 +35,12 @@ const config: Config = {
   coverageReporters: ['text', 'lcov', 'clover'],
   testEnvironment: 'node',
   roots: ['<rootDir>/src/', '<rootDir>/test/'],
-  moduleNameMapper: pathsToModuleNameMapper(compilerOptions.paths, {
-    prefix: '<rootDir>/',
-  }),
+  moduleNameMapper: {
+    ...pathsToModuleNameMapper(compilerOptions.paths, {
+      prefix: '<rootDir>/',
+    }),
+    '^puppeteer$': '<rootDir>/src/__mocks__/puppeteer.ts',
+  },
   preset: 'ts-jest',
 };
 

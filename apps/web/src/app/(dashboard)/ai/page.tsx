@@ -108,33 +108,14 @@ const SUGGESTED_QUERIES = [
   },
 ];
 
-// Mock anomaly data for the Anomaly Detection tab.
-// Points where isAnomaly=true have values outside the expectedMin/expectedMax range.
-// severity indicates how far outside the bounds: "high" = way outside, "medium" = slightly outside.
-const MOCK_ANOMALY_DATA: AnomalyPoint[] = [
-  { timestamp: "10:00", value: 22.1, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "10:15", value: 22.5, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "10:30", value: 23.0, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  // These two points at 10:45 and 11:00 are flagged as anomalies (value > 28 expectedMax)
-  { timestamp: "10:45", value: 35.2, expectedMin: 20, expectedMax: 28, isAnomaly: true, severity: "high" },
-  { timestamp: "11:00", value: 33.8, expectedMin: 20, expectedMax: 28, isAnomaly: true, severity: "high" },
-  { timestamp: "11:15", value: 27.5, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "11:30", value: 24.2, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "11:45", value: 23.8, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "12:00", value: 23.1, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  // This point at 12:15 is a "medium" anomaly (slightly above the 28 threshold)
-  { timestamp: "12:15", value: 29.5, expectedMin: 20, expectedMax: 28, isAnomaly: true, severity: "medium" },
-  { timestamp: "12:30", value: 23.4, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-  { timestamp: "12:45", value: 22.9, expectedMin: 20, expectedMax: 28, isAnomaly: false, severity: "low" },
-];
+// Default anomaly data shown before the user runs detection.
+const DEFAULT_ANOMALY_DATA: AnomalyPoint[] = [];
 
-// Summary metrics shown in the Telemetry Summary tab.
-// These represent aggregated statistics calculated by the AI service.
-const MOCK_SUMMARY_METRICS = [
-  { metric: "Avg Temperature", value: "23.4 C", change: "+1.2 C" },
-  { metric: "Avg Humidity", value: "45.8%", change: "-2.3%" },
-  { metric: "Active Devices", value: "42 / 52", change: "+3" },
-  { metric: "Anomalies (24h)", value: "3", change: "+1" },
+const DEFAULT_SUMMARY_METRICS = [
+  { metric: "Avg Temperature", value: "--", change: "--" },
+  { metric: "Avg Humidity", value: "--", change: "--" },
+  { metric: "Active Devices", value: "--", change: "--" },
+  { metric: "Anomalies (24h)", value: "--", change: "--" },
 ];
 
 /**
@@ -165,8 +146,29 @@ export default function AIAssistantPage() {
   // Ref to the invisible div at the bottom of the chat, used for auto-scrolling
   const messagesEndRef = useRef<HTMLDivElement>(null);
   // Anomaly detection panel: which device and metric to analyze
-  const [anomalyDevice, setAnomalyDevice] = useState("dev-001");
+  const [anomalyDevice, setAnomalyDevice] = useState("");
   const [anomalyMetric, setAnomalyMetric] = useState("temperature");
+  const [anomalyTimeRange, setAnomalyTimeRange] = useState("24h");
+  const [anomalyData, setAnomalyData] = useState<AnomalyPoint[]>(DEFAULT_ANOMALY_DATA);
+  const [anomalyLoading, setAnomalyLoading] = useState(false);
+  const [summaryMetrics, setSummaryMetrics] = useState(DEFAULT_SUMMARY_METRICS);
+  const [, setSummaryLoading] = useState(false);
+  const [devices, setDevices] = useState<{ id: string; name: string }[]>([]);
+
+  useEffect(() => {
+    apiClient
+      .get<{ data: any[] }>("/devices?limit=100")
+      .then((result) => {
+        if (result?.data) {
+          const mapped = result.data.map((d: any) => ({ id: d.id, name: d.name }));
+          setDevices(mapped);
+          if (mapped.length > 0 && !anomalyDevice) {
+            setAnomalyDevice(mapped[0].id);
+          }
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   // Auto-scroll to the bottom of the chat whenever a new message is added.
   // This ensures the user always sees the latest message.
@@ -252,6 +254,52 @@ export default function AIAssistantPage() {
     },
     [handleSend]
   );
+
+  const handleRunAnomalyDetection = useCallback(async () => {
+    setAnomalyLoading(true);
+    try {
+      const result = await apiClient.post<{ anomalies: AnomalyPoint[] }>(
+        "/ai/anomaly-detection",
+        { deviceId: anomalyDevice, metric: anomalyMetric, timeRange: anomalyTimeRange }
+      );
+      setAnomalyData(result.anomalies ?? []);
+    } catch {
+      // Fallback: try to parse from the query endpoint
+      try {
+        await apiClient.post<{ answer: string }>(
+          "/ai/query",
+          { query: `Run anomaly detection on ${anomalyMetric} for device ${anomalyDevice}` }
+        );
+        setAnomalyData(DEFAULT_ANOMALY_DATA);
+      } catch {
+        setAnomalyData(DEFAULT_ANOMALY_DATA);
+      }
+    } finally {
+      setAnomalyLoading(false);
+    }
+  }, [anomalyDevice, anomalyMetric, anomalyTimeRange]);
+
+  const handleFetchSummary = useCallback(async () => {
+    setSummaryLoading(true);
+    try {
+      const result = await apiClient.post<{
+        summary: { metric: string; value: string; change: string }[];
+      }>("/ai/summary", {});
+      if (result.summary) {
+        setSummaryMetrics(result.summary);
+      }
+    } catch {
+      // Keep default metrics as fallback
+    } finally {
+      setSummaryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === "summary") {
+      handleFetchSummary();
+    }
+  }, [activeTab, handleFetchSummary]);
 
   return (
     <div className="space-y-6">
@@ -378,9 +426,10 @@ export default function AIAssistantPage() {
                   onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAnomalyDevice(e.target.value)}
                   className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
                 >
-                  <option value="dev-001">Temperature Sensor A1</option>
-                  <option value="dev-002">Humidity Sensor B3</option>
-                  <option value="dev-004">Smart Valve Actuator</option>
+                  <option value="">Select a device...</option>
+                  {devices.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -401,15 +450,19 @@ export default function AIAssistantPage() {
                 <label className="mb-1.5 block text-sm font-medium text-dark-700 dark:text-dark-300">
                   Time Range
                 </label>
-                <select className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100">
+                <select
+                  value={anomalyTimeRange}
+                  onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setAnomalyTimeRange(e.target.value)}
+                  className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
+                >
                   <option value="1h">Last 1 hour</option>
                   <option value="6h">Last 6 hours</option>
                   <option value="24h">Last 24 hours</option>
                   <option value="7d">Last 7 days</option>
                 </select>
               </div>
-              <Button className="w-full" leftIcon={<AlertTriangle className="h-4 w-4" />}>
-                Run Detection
+              <Button className="w-full" leftIcon={<AlertTriangle className="h-4 w-4" />} onClick={handleRunAnomalyDetection} disabled={anomalyLoading}>
+                {anomalyLoading ? "Detecting..." : "Run Detection"}
               </Button>
             </CardContent>
           </Card>
@@ -418,13 +471,15 @@ export default function AIAssistantPage() {
             <CardHeader>
               <CardTitle>Anomaly Detection Results</CardTitle>
               <CardDescription>
-                3 anomalies detected in the selected time range
+                {anomalyData.length > 0
+                  ? `${anomalyData.filter((d) => d.isAnomaly).length} anomalies detected in the selected time range`
+                  : "Configure parameters and run detection to see results"}
               </CardDescription>
             </CardHeader>
             <CardContent>
               <div className="h-72">
                 <ResponsiveContainer width="100%" height="100%">
-                  <LineChart data={MOCK_ANOMALY_DATA}>
+                  <LineChart data={anomalyData}>
                     <CartesianGrid strokeDasharray="3 3" className="stroke-dark-200 dark:stroke-dark-700" />
                     <XAxis dataKey="timestamp" tick={{ fill: "rgb(107 114 128)", fontSize: 12 }} />
                     <YAxis tick={{ fill: "rgb(107 114 128)", fontSize: 12 }} />
@@ -508,7 +563,7 @@ export default function AIAssistantPage() {
 
       {activeTab === "summary" && (
         <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-4">
-          {MOCK_SUMMARY_METRICS.map((item) => (
+          {summaryMetrics.map((item) => (
             <Card key={item.metric}>
               <CardContent className="p-5">
                 <p className="text-sm font-medium text-dark-500 dark:text-dark-400">

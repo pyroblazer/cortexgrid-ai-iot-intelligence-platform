@@ -29,7 +29,7 @@ import { RedisService } from '../../common/redis/redis.service';
 
 @WebSocketGateway({
   cors: {
-    origin: process.env.CORS_ORIGIN || '*',
+    origin: '*', // Overridden dynamically in handleConnection from ConfigService
     credentials: true,
   },
   namespace: '/telemetry',
@@ -42,7 +42,10 @@ export class TelemetryGateway
 
   private readonly logger = new Logger(TelemetryGateway.name);
 
-  constructor(private readonly redisService: RedisService) {}
+  constructor(
+    private readonly redisService: RedisService,
+    private readonly configService: ConfigService,
+  ) {}
 
   afterInit() {
     this.logger.log('Telemetry WebSocket Gateway initialized');
@@ -96,7 +99,7 @@ export class TelemetryGateway
 
   /**
    * Broadcast telemetry data to all connected clients in the organization room.
-   * This is called when Redis receives a new telemetry message.
+   * Also pushes a per-device event for clients subscribed to a specific device.
    */
   broadcastTelemetry(data: {
     deviceId: string;
@@ -105,8 +108,10 @@ export class TelemetryGateway
     timestamp: string;
   }) {
     const { organizationId, ...payload } = data;
-    // Only send to browsers that belong to this organization
+    // Broadcast to all browsers in this organization
     this.server.to(`org:${organizationId}`).emit('telemetry', payload);
+    // Push per-device update for device detail page subscribers
+    this.sendDeviceUpdate(data.deviceId, payload);
   }
 
   /**

@@ -3,6 +3,7 @@ import { NotFoundException } from '@nestjs/common';
 import { TelemetryService } from '../telemetry.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { UsageService } from '../../../common/usage/usage.service';
 
 describe('TelemetryService', () => {
   let service: TelemetryService;
@@ -32,12 +33,17 @@ describe('TelemetryService', () => {
     hgetall: jest.fn().mockResolvedValue({}),
   };
 
+  const mockUsageService = {
+    increment: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         TelemetryService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: UsageService, useValue: mockUsageService },
       ],
     }).compile();
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { formatDistanceToNow } from "date-fns";
 import {
@@ -17,6 +17,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@cortexgrid/ui/components/Card";
+import { apiClient } from "@/lib/api-client";
 import type { AlertSeverity } from "@cortexgrid/types";
 
 interface AlertItem {
@@ -27,49 +28,6 @@ interface AlertItem {
   deviceName: string;
   createdAt: string;
 }
-
-const MOCK_ALERTS: AlertItem[] = [
-  {
-    id: "alert-001",
-    title: "High Temperature Detected",
-    message: "Temperature exceeded threshold of 30C (current: 35.2C)",
-    severity: "CRITICAL" as AlertSeverity,
-    deviceName: "Temperature Sensor A1",
-    createdAt: new Date(Date.now() - 300000).toISOString(),
-  },
-  {
-    id: "alert-002",
-    title: "Device Offline",
-    message: "Motion Detector C1 has been offline for over 1 hour",
-    severity: "WARNING" as AlertSeverity,
-    deviceName: "Motion Detector C1",
-    createdAt: new Date(Date.now() - 3600000).toISOString(),
-  },
-  {
-    id: "alert-003",
-    title: "Low Battery Warning",
-    message: "Battery level below 15% (current: 12.3%)",
-    severity: "WARNING" as AlertSeverity,
-    deviceName: "Edge Gateway Alpha",
-    createdAt: new Date(Date.now() - 7200000).toISOString(),
-  },
-  {
-    id: "alert-004",
-    title: "Firmware Update Available",
-    message: "New firmware version 2.2.0 available",
-    severity: "INFO" as AlertSeverity,
-    deviceName: "Temperature Sensor A1",
-    createdAt: new Date(Date.now() - 86400000).toISOString(),
-  },
-  {
-    id: "alert-005",
-    title: "Humidity Spike",
-    message: "Humidity jumped from 45% to 78% in 5 minutes",
-    severity: "CRITICAL" as AlertSeverity,
-    deviceName: "Humidity Sensor B3",
-    createdAt: new Date(Date.now() - 172800000).toISOString(),
-  },
-];
 
 const SEVERITY_CONFIG: Record<
   AlertSeverity,
@@ -103,15 +61,36 @@ export function AlertList({
   deviceId,
   showViewAll = false,
 }: AlertListProps) {
-  const alerts = useMemo(() => {
-    let filtered = MOCK_ALERTS;
-    if (deviceId) {
-      filtered = filtered.filter((a) =>
-        a.title.toLowerCase().includes(deviceId.toLowerCase())
-      );
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchAlerts = useCallback(async () => {
+    try {
+      const params = new URLSearchParams({ limit: String(limit) });
+      if (deviceId) params.set("deviceId", deviceId);
+      const result = await apiClient.get<{ data: any[] }>(`/alerts?${params.toString()}`);
+      if (result?.data) {
+        setAlerts(
+          result.data.map((a: any) => ({
+            id: a.id,
+            title: a.title ?? a.rule?.name ?? "Alert",
+            message: a.message ?? "",
+            severity: a.severity ?? "INFO",
+            deviceName: a.device?.name ?? "Unknown Device",
+            createdAt: a.createdAt,
+          }))
+        );
+      }
+    } catch {
+      // Alerts unavailable
+    } finally {
+      setLoading(false);
     }
-    return filtered.slice(0, limit);
   }, [limit, deviceId]);
+
+  useEffect(() => {
+    fetchAlerts();
+  }, [fetchAlerts]);
 
   return (
     <Card>
@@ -130,14 +109,18 @@ export function AlertList({
         )}
       </CardHeader>
       <CardContent>
-        {alerts.length === 0 ? (
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+          </div>
+        ) : alerts.length === 0 ? (
           <div className="py-8 text-center text-sm text-dark-500 dark:text-dark-400">
             No recent alerts
           </div>
         ) : (
           <div className="divide-y divide-dark-100 dark:divide-dark-800">
             {alerts.map((alert) => {
-              const config = SEVERITY_CONFIG[alert.severity];
+              const config = SEVERITY_CONFIG[alert.severity] ?? SEVERITY_CONFIG.INFO;
               const Icon = config.icon;
 
               return (

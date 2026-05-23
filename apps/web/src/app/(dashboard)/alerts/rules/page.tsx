@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback } from "react";
+import { useState, useMemo, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Plus,
@@ -13,17 +13,23 @@ import {
 } from "lucide-react";
 import { Button } from "@cortexgrid/ui/components/Button";
 import { Badge } from "@cortexgrid/ui/components/Badge";
+import { Input } from "@cortexgrid/ui/components/Input";
 import { Modal } from "@cortexgrid/ui/components/Modal";
 import { DataTable, type Column } from "@cortexgrid/ui/components/DataTable";
+import { apiClient } from "@/lib/api-client";
 import type { AlertSeverity } from "@cortexgrid/types";
+
+interface AlertCondition {
+  field: string;
+  operator: string;
+  threshold: number;
+}
 
 interface AlertRule {
   id: string;
   name: string;
   description: string | null;
-  metric: string;
-  operator: string;
-  threshold: number;
+  condition: AlertCondition;
   severity: AlertSeverity;
   isActive: boolean;
   lastTriggeredAt: string | null;
@@ -45,76 +51,134 @@ const OPERATOR_LABELS: Record<string, string> = {
   neq: "!=",
 };
 
-const MOCK_RULES: AlertRule[] = [
-  {
-    id: "rule-001",
-    name: "High Temperature Alert",
-    description: "Triggers when temperature exceeds 30C",
-    metric: "temperature",
-    operator: "gt",
-    threshold: 30,
-    severity: "CRITICAL" as AlertSeverity,
-    isActive: true,
-    lastTriggeredAt: new Date(Date.now() - 300000).toISOString(),
-    createdAt: "2024-01-15T10:00:00Z",
-  },
-  {
-    id: "rule-002",
-    name: "Low Battery Warning",
-    description: "Warn when battery drops below 15%",
-    metric: "battery",
-    operator: "lt",
-    threshold: 15,
-    severity: "WARNING" as AlertSeverity,
-    isActive: true,
-    lastTriggeredAt: new Date(Date.now() - 7200000).toISOString(),
-    createdAt: "2024-02-10T08:00:00Z",
-  },
-  {
-    id: "rule-003",
-    name: "Humidity Spike",
-    description: "Alert on rapid humidity increase above 70%",
-    metric: "humidity",
-    operator: "gt",
-    threshold: 70,
-    severity: "WARNING" as AlertSeverity,
-    isActive: false,
-    lastTriggeredAt: null,
-    createdAt: "2024-02-20T14:00:00Z",
-  },
-  {
-    id: "rule-004",
-    name: "Pressure Drop",
-    description: "Detect significant pressure drops",
-    metric: "pressure",
-    operator: "lt",
-    threshold: 980,
-    severity: "INFO" as AlertSeverity,
-    isActive: true,
-    lastTriggeredAt: null,
-    createdAt: "2024-03-01T09:00:00Z",
-  },
-];
+const DEFAULT_FORM = {
+  name: "",
+  description: "",
+  conditionField: "temperature",
+  conditionOperator: "gt",
+  conditionThreshold: 30,
+  severity: "WARNING" as AlertSeverity,
+};
 
 export default function AlertRulesPage() {
   const router = useRouter();
-  const [rules, setRules] = useState<AlertRule[]>(MOCK_RULES);
+  const [rules, setRules] = useState<AlertRule[]>([]);
+  const [loading, setLoading] = useState(true);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
   const [selectedRule, setSelectedRule] = useState<AlertRule | null>(null);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingRule, setEditingRule] = useState<AlertRule | null>(null);
+  const [form, setForm] = useState(DEFAULT_FORM);
+  const [saving, setSaving] = useState(false);
 
-  const handleToggle = useCallback((id: string) => {
-    setRules((prev) =>
-      prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r))
-    );
+  const fetchRules = useCallback(async () => {
+    try {
+      const result = await apiClient.get<{ data: any[] }>("/alerts/rules");
+      if (result?.data) {
+        setRules(
+          result.data.map((r: any) => ({
+            id: r.id,
+            name: r.name,
+            description: r.description ?? null,
+            condition: r.condition ?? { field: "temperature", operator: "gt", threshold: 30 },
+            severity: r.severity ?? "INFO",
+            isActive: r.isActive ?? false,
+            lastTriggeredAt: r.lastTriggeredAt ?? null,
+            createdAt: r.createdAt,
+          }))
+        );
+      }
+    } catch {
+      // Rules unavailable
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const handleDelete = useCallback(() => {
-    if (selectedRule) {
-      setRules((prev) => prev.filter((r) => r.id !== selectedRule.id));
-      setDeleteModalOpen(false);
-      setSelectedRule(null);
+  useEffect(() => {
+    fetchRules();
+  }, [fetchRules]);
+
+  const handleToggle = useCallback(async (id: string, currentActive: boolean) => {
+    try {
+      await apiClient.patch(`/alerts/rules/${id}`, { isActive: !currentActive });
+      setRules((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, isActive: !r.isActive } : r))
+      );
+    } catch {
+      // Toggle failed
     }
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedRule) return;
+    try {
+      await apiClient.delete(`/alerts/rules/${selectedRule.id}`);
+      setRules((prev) => prev.filter((r) => r.id !== selectedRule.id));
+    } catch {
+      // Delete failed
+    }
+    setDeleteModalOpen(false);
+    setSelectedRule(null);
   }, [selectedRule]);
+
+  const openCreateModal = useCallback(() => {
+    setForm(DEFAULT_FORM);
+    setCreateModalOpen(true);
+  }, []);
+
+  const openEditModal = useCallback((rule: AlertRule) => {
+    setEditingRule(rule);
+    setForm({
+      name: rule.name,
+      description: rule.description ?? "",
+      conditionField: rule.condition?.field ?? "temperature",
+      conditionOperator: rule.condition?.operator ?? "gt",
+      conditionThreshold: rule.condition?.threshold ?? 30,
+      severity: rule.severity,
+    });
+    setEditModalOpen(true);
+  }, []);
+
+  const handleCreate = useCallback(async () => {
+    setSaving(true);
+    try {
+      await apiClient.post("/alerts/rules", {
+        name: form.name,
+        description: form.description || undefined,
+        condition: { field: form.conditionField, operator: form.conditionOperator, threshold: form.conditionThreshold },
+        severity: form.severity,
+      });
+      setCreateModalOpen(false);
+      setForm(DEFAULT_FORM);
+      await fetchRules();
+    } catch {
+      // Create failed
+    } finally {
+      setSaving(false);
+    }
+  }, [form, fetchRules]);
+
+  const handleEdit = useCallback(async () => {
+    if (!editingRule) return;
+    setSaving(true);
+    try {
+      await apiClient.patch(`/alerts/rules/${editingRule.id}`, {
+        name: form.name,
+        description: form.description || undefined,
+        condition: { field: form.conditionField, operator: form.conditionOperator, threshold: form.conditionThreshold },
+        severity: form.severity,
+      });
+      setEditModalOpen(false);
+      setEditingRule(null);
+      await fetchRules();
+    } catch {
+      // Edit failed
+    } finally {
+      setSaving(false);
+    }
+  }, [editingRule, form, fetchRules]);
 
   const columns: Column<AlertRule>[] = useMemo(
     () => [
@@ -138,11 +202,14 @@ export default function AlertRulesPage() {
       {
         key: "condition",
         header: "Condition",
-        render: (row) => (
-          <code className="rounded bg-dark-100 px-2 py-1 font-mono text-sm text-dark-700 dark:bg-dark-800 dark:text-dark-300">
-            {row.metric} {OPERATOR_LABELS[row.operator]} {row.threshold}
-          </code>
-        ),
+        render: (row) => {
+          const cond = row.condition;
+          return (
+            <code className="rounded bg-dark-100 px-2 py-1 font-mono text-sm text-dark-700 dark:bg-dark-800 dark:text-dark-300">
+              {cond?.field ?? "?"} {OPERATOR_LABELS[cond?.operator] ?? cond?.operator ?? "?"} {cond?.threshold ?? "?"}
+            </code>
+          );
+        },
       },
       {
         key: "severity",
@@ -181,7 +248,7 @@ export default function AlertRulesPage() {
             <button
               onClick={(e: React.MouseEvent) => {
                 e.stopPropagation();
-                handleToggle(row.id);
+                handleToggle(row.id, row.isActive);
               }}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-dark-500 hover:bg-dark-100 dark:hover:bg-dark-800"
               title={row.isActive ? "Disable rule" : "Enable rule"}
@@ -194,7 +261,10 @@ export default function AlertRulesPage() {
               )}
             </button>
             <button
-              onClick={(e: React.MouseEvent) => e.stopPropagation()}
+              onClick={(e: React.MouseEvent) => {
+                e.stopPropagation();
+                openEditModal(row);
+              }}
               className="inline-flex h-8 w-8 items-center justify-center rounded-md text-dark-500 hover:bg-dark-100 dark:hover:bg-dark-800"
               title="Edit rule"
               aria-label="Edit rule"
@@ -217,7 +287,70 @@ export default function AlertRulesPage() {
         ),
       },
     ],
-    [handleToggle]
+    [handleToggle, openEditModal]
+  );
+
+  const renderFormFields = () => (
+    <div className="space-y-4">
+      <Input
+        label="Rule Name"
+        value={form.name}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, name: e.target.value }))}
+        placeholder="e.g. High Temperature Alert"
+      />
+      <Input
+        label="Description"
+        value={form.description}
+        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, description: e.target.value }))}
+        placeholder="What this rule detects"
+      />
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-dark-700 dark:text-dark-300">Condition</label>
+        <div className="flex gap-2">
+          <select
+            value={form.conditionField}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, conditionField: e.target.value }))}
+            className="h-10 flex-1 rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
+          >
+            <option value="temperature">Temperature</option>
+            <option value="humidity">Humidity</option>
+            <option value="pressure">Pressure</option>
+            <option value="battery">Battery</option>
+            <option value="signal_strength">Signal Strength</option>
+          </select>
+          <select
+            value={form.conditionOperator}
+            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, conditionOperator: e.target.value }))}
+            className="h-10 w-20 rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
+          >
+            <option value="gt">&gt;</option>
+            <option value="lt">&lt;</option>
+            <option value="gte">&gt;=</option>
+            <option value="lte">&lt;=</option>
+            <option value="eq">=</option>
+            <option value="neq">!=</option>
+          </select>
+          <input
+            type="number"
+            value={form.conditionThreshold}
+            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, conditionThreshold: Number(e.target.value) }))}
+            className="h-10 w-24 rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
+          />
+        </div>
+      </div>
+      <div>
+        <label className="mb-1.5 block text-sm font-medium text-dark-700 dark:text-dark-300">Severity</label>
+        <select
+          value={form.severity}
+          onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setForm((f) => ({ ...f, severity: e.target.value as AlertSeverity }))}
+          className="h-10 w-full rounded-lg border border-dark-300 bg-white px-3 py-2 text-sm text-dark-900 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-500/20 dark:border-dark-600 dark:bg-dark-800 dark:text-dark-100"
+        >
+          <option value="CRITICAL">Critical</option>
+          <option value="WARNING">Warning</option>
+          <option value="INFO">Info</option>
+        </select>
+      </div>
+    </div>
   );
 
   return (
@@ -239,18 +372,24 @@ export default function AlertRulesPage() {
             Configure rules that trigger alerts when conditions are met
           </p>
         </div>
-        <Button size="sm" leftIcon={<Plus className="h-4 w-4" />}>
+        <Button size="sm" leftIcon={<Plus className="h-4 w-4" />} onClick={openCreateModal}>
           Create Rule
         </Button>
       </div>
 
-      <DataTable
-        columns={columns}
-        data={rules}
-        keyExtractor={(row) => row.id}
-        pageSize={10}
-        emptyMessage="No alert rules configured"
-      />
+      {loading ? (
+        <div className="flex items-center justify-center py-16">
+          <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+        </div>
+      ) : (
+        <DataTable
+          columns={columns}
+          data={rules}
+          keyExtractor={(row) => row.id}
+          pageSize={10}
+          emptyMessage="No alert rules configured"
+        />
+      )}
 
       <Modal
         open={deleteModalOpen}
@@ -259,10 +398,7 @@ export default function AlertRulesPage() {
         description={`Are you sure you want to delete "${selectedRule?.name}"? This action cannot be undone.`}
         actions={
           <>
-            <Button
-              variant="outline"
-              onClick={() => setDeleteModalOpen(false)}
-            >
+            <Button variant="outline" onClick={() => setDeleteModalOpen(false)}>
               Cancel
             </Button>
             <Button variant="danger" onClick={handleDelete}>
@@ -278,6 +414,40 @@ export default function AlertRulesPage() {
             by this rule will not be affected.
           </p>
         </div>
+      </Modal>
+
+      <Modal
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
+        title="Create Alert Rule"
+        description="Define a condition that triggers an alert when met"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => setCreateModalOpen(false)}>Cancel</Button>
+            <Button onClick={handleCreate} disabled={!form.name.trim() || saving}>
+              {saving ? "Creating..." : "Create Rule"}
+            </Button>
+          </>
+        }
+      >
+        {renderFormFields()}
+      </Modal>
+
+      <Modal
+        open={editModalOpen}
+        onClose={() => { setEditModalOpen(false); setEditingRule(null); }}
+        title="Edit Alert Rule"
+        description="Update the alert rule configuration"
+        actions={
+          <>
+            <Button variant="outline" onClick={() => { setEditModalOpen(false); setEditingRule(null); }}>Cancel</Button>
+            <Button onClick={handleEdit} disabled={!form.name.trim() || saving}>
+              {saving ? "Saving..." : "Save Changes"}
+            </Button>
+          </>
+        }
+      >
+        {renderFormFields()}
       </Modal>
     </div>
   );

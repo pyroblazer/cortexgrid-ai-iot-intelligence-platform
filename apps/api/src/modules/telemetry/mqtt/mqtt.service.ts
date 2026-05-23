@@ -67,23 +67,30 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   async onModuleInit() {
     const brokerUrl = this.configService.get<string>(
       'MQTT_BROKER_URL',
-      'mqtt://localhost:1883',  // Default Mosquitto broker port
+      'mqtt://localhost:1883',
     );
     const username = this.configService.get<string>('MQTT_USERNAME');
     const password = this.configService.get<string>('MQTT_PASSWORD');
 
     try {
-      // Connect to the MQTT broker with authentication and reliability settings.
-      this.client = mqtt.connect(brokerUrl, {
+      // Build connection options. For HiveMQ Cloud (mqtts://), TLS is used.
+      const connectOptions: mqtt.IClientOptions = {
         username,
         password,
-        // Unique client ID includes process PID to avoid conflicts
-        // if multiple API instances connect to the same broker.
         clientId: `cortexgrid-api-${process.pid}`,
-        clean: true,             // Start fresh on reconnect (don't recover old session)
-        reconnectPeriod: 5000,   // Try reconnecting every 5 seconds if connection drops
-        connectTimeout: 30000,   // Give up connecting after 30 seconds
-      });
+        clean: true,
+        reconnectPeriod: 5000,
+        connectTimeout: 30000,
+      };
+
+      // Enable TLS for secure connections (mqtts://, port 8883)
+      if (brokerUrl.startsWith('mqtts://') || brokerUrl.includes(':8883')) {
+        connectOptions.protocol = 'mqtts';
+        connectOptions.port = 8883;
+        connectOptions.rejectUnauthorized = true;
+      }
+
+      this.client = mqtt.connect(brokerUrl, connectOptions);
 
       // Event: Successfully connected to the broker.
       this.client.on('connect', () => {
@@ -296,9 +303,13 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
   }
 
   /**
-   * Called automatically by NestJS when the application shuts down.
-   * Gracefully disconnects from the MQTT broker.
+   * Check whether the MQTT client is currently connected to the broker.
+   * Used by the health-check endpoint to report MQTT status.
    */
+  isConnected(): boolean {
+    return this.client?.connected ?? false;
+  }
+
   async onModuleDestroy() {
     if (this.client) {
       this.logger.log('Disconnecting MQTT client...');

@@ -110,25 +110,19 @@ export default function RegisterPage() {
   /**
    * onSubmit - Sends the registration data to the API.
    *
-   * Note: We combine firstName + lastName into a single "name" field before
-   * sending to the API, because the backend expects one name string.
-   *
-   * On success, we redirect to login with a query param so the login page
-   * can show a "Registration successful!" message.
+   * The backend RegisterDto expects: firstName, lastName, email, password, organizationName.
+   * confirmPassword is only for client-side validation (zod .refine) and is NOT sent.
    */
   const onSubmit = async (data: RegisterFormValues) => {
     setServerError(null);
     try {
-      // Combine first and last name into one string for the API
-      const name = `${data.firstName} ${data.lastName}`;
       await apiClient.post("/auth/register", {
-        name,
+        firstName: data.firstName,
+        lastName: data.lastName,
         email: data.email,
         password: data.password,
-        confirmPassword: data.confirmPassword,
         organizationName: data.organizationName,
       });
-      // Redirect to login with a flag so the login page knows registration succeeded
       router.push("/login?registered=true");
     } catch (err: unknown) {
       const message =

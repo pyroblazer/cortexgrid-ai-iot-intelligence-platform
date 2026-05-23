@@ -36,8 +36,10 @@ import {
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { EmailService } from '../../common/email/email.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 
@@ -50,6 +52,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
     private readonly redisService: RedisService,
+    private readonly emailService: EmailService,
   ) {}
 
   /**
@@ -459,6 +462,86 @@ export class AuthService {
 
     this.logger.log(`Password changed: ${userId}`);
     return { message: 'Password changed successfully' };
+  }
+
+  /**
+   * Initiate a password reset by generating a time-limited token.
+   *
+   * The token is stored in Redis with a 1-hour TTL and associated with the
+   * user's ID. In development mode, the reset URL is logged for convenience.
+   * The response is deliberately generic to avoid revealing whether the email
+   * is registered (prevents user enumeration).
+   */
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+
+    if (user) {
+      const token = crypto.randomUUID();
+      const ONE_HOUR = 3600;
+
+      await this.redisService.set(
+        `password-reset:${token}`,
+        user.id,
+        ONE_HOUR,
+      );
+
+      const resetUrl = `${this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000')}/reset-password?token=${token}`;
+
+      if (process.env.NODE_ENV !== 'production') {
+        this.logger.log(`Password reset link: ${resetUrl}`);
+      }
+
+      if (this.emailService.isConfigured()) {
+        const userName = user.firstName || user.email;
+        await this.emailService.send(
+          user.email,
+          'Reset your CortexGrid password',
+          `
+          <div style="font-family: sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1a1a1a;">Password Reset Request</h2>
+            <p>Hi ${userName},</p>
+            <p>We received a request to reset your password. Click the button below to choose a new one:</p>
+            <p style="text-align: center; margin: 32px 0;">
+              <a href="${resetUrl}" style="background: #2563eb; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; display: inline-block;">Reset Password</a>
+            </p>
+            <p style="color: #666; font-size: 14px;">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+            <hr style="border: none; border-top: 1px solid #e5e5e5; margin: 24px 0;" />
+            <p style="color: #999; font-size: 12px;">CortexGrid IoT Platform</p>
+          </div>`,
+        ).catch((err) => {
+          this.logger.error(`Failed to send password reset email: ${err instanceof Error ? err.message : String(err)}`);
+        });
+      }
+    }
+
+    return { message: 'If an account with that email exists, a reset link has been sent.' };
+  }
+
+  /**
+   * Reset a user's password using a valid reset token.
+   *
+   * Looks up the token in Redis to find the associated user, hashes the new
+   * password with bcrypt (same 12 salt rounds as registration), updates the
+   * database, and cleans up the token so it cannot be reused.
+   */
+  async resetPassword(token: string, newPassword: string) {
+    const userId = await this.redisService.get(`password-reset:${token}`);
+
+    if (!userId) {
+      throw new BadRequestException('Invalid or expired reset token');
+    }
+
+    const passwordHash = await bcrypt.hash(newPassword, 12);
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+
+    await this.redisService.del(`password-reset:${token}`);
+
+    this.logger.log(`Password reset completed for user: ${userId}`);
+    return { message: 'Password has been reset successfully' };
   }
 
   /**

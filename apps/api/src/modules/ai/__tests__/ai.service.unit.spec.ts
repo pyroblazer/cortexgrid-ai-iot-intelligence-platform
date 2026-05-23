@@ -1,15 +1,14 @@
 import { Test, TestingModule } from '@nestjs/testing';
-import { ConfigService } from '@nestjs/config';
-import { HttpService } from '@nestjs/axios';
 import { NotFoundException } from '@nestjs/common';
-import { of, throwError } from 'rxjs';
 import { AiService } from '../ai.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
+import { UsageService } from '../../../common/usage/usage.service';
+import { LlmProvider } from '../providers/llm-provider.interface';
 
 describe('AiService', () => {
   let service: AiService;
   let prisma: any;
-  let httpService: any;
+  let llmProvider: any;
 
   const mockPrisma = {
     telemetry: {
@@ -20,17 +19,14 @@ describe('AiService', () => {
     },
   };
 
-  const mockHttpService = {
-    post: jest.fn(),
+  const mockUsageService = {
+    increment: jest.fn().mockResolvedValue(undefined),
   };
 
-  const mockConfigService = {
-    get: jest.fn((key: string, defaultValue?: string) => {
-      const config: Record<string, string> = {
-        OLLAMA_BASE_URL: 'http://localhost:11434',
-      };
-      return config[key] ?? defaultValue;
-    }),
+  const mockLlmProvider: jest.Mocked<LlmProvider> = {
+    call: jest.fn(),
+    isAvailable: jest.fn().mockReturnValue(true),
+    getName: jest.fn().mockReturnValue('TestProvider'),
   };
 
   beforeEach(async () => {
@@ -38,14 +34,14 @@ describe('AiService', () => {
       providers: [
         AiService,
         { provide: PrismaService, useValue: mockPrisma },
-        { provide: HttpService, useValue: mockHttpService },
-        { provide: ConfigService, useValue: mockConfigService },
+        { provide: 'LLM_PROVIDER', useValue: mockLlmProvider },
+        { provide: UsageService, useValue: mockUsageService },
       ],
     }).compile();
 
     service = module.get<AiService>(AiService);
     prisma = module.get(PrismaService);
-    httpService = module.get(HttpService);
+    llmProvider = module.get('LLM_PROVIDER');
   });
 
   afterEach(() => {
@@ -53,7 +49,7 @@ describe('AiService', () => {
   });
 
   describe('naturalLanguageQuery', () => {
-    it('should return AI response from Ollama', async () => {
+    it('should return AI response from LLM provider', async () => {
       const mockRecords = [
         {
           deviceId: 'device_1',
@@ -70,11 +66,7 @@ describe('AiService', () => {
       ];
 
       prisma.telemetry.findMany.mockResolvedValue(mockRecords);
-      httpService.post.mockReturnValue(
-        of({
-          data: { response: 'The average temperature was 72.75 degrees.' },
-        }),
-      );
+      llmProvider.call.mockResolvedValue('The average temperature was 72.75 degrees.');
 
       const result = await service.naturalLanguageQuery(
         'What was the average temperature?',
@@ -83,11 +75,11 @@ describe('AiService', () => {
 
       expect(result.query).toBe('What was the average temperature?');
       expect(result.response).toBe('The average temperature was 72.75 degrees.');
-      expect(result.source).toBe('ollama');
+      expect(result.source).toBe('llm');
       expect(result.dataPoints).toBe(2);
     });
 
-    it('should fall back to statistical summary on Ollama error', async () => {
+    it('should fall back to statistical summary on LLM error', async () => {
       const mockRecords = [
         {
           deviceId: 'device_1',
@@ -104,8 +96,7 @@ describe('AiService', () => {
       ];
 
       prisma.telemetry.findMany.mockResolvedValue(mockRecords);
-      // Simulate Ollama returning null (error case)
-      httpService.post.mockReturnValue(throwError(() => new Error('Connection refused')));
+      llmProvider.call.mockResolvedValue(null);
 
       const result = await service.naturalLanguageQuery(
         'Show temperature data',
@@ -158,7 +149,7 @@ describe('AiService', () => {
       expect(call.where.timestamp.lte).toEqual(new Date('2024-01-02T00:00:00Z'));
     });
 
-    it('should fall back to statistical summary when Ollama returns null response', async () => {
+    it('should fall back to statistical summary when LLM returns null', async () => {
       const mockRecords = [
         {
           deviceId: 'device_1',
@@ -169,25 +160,7 @@ describe('AiService', () => {
       ];
 
       prisma.telemetry.findMany.mockResolvedValue(mockRecords);
-      httpService.post.mockReturnValue(of({ data: { response: null } }));
-
-      const result = await service.naturalLanguageQuery('query', 'org_001');
-
-      expect(result.source).toBe('statistical');
-    });
-
-    it('should fall back to statistical summary when Ollama returns null data', async () => {
-      const mockRecords = [
-        {
-          deviceId: 'device_1',
-          metrics: { temperature: 72 },
-          timestamp: new Date('2024-01-15T10:00:00Z'),
-          device: { id: 'device_1', name: 'Sensor 1', serialNumber: 'SN001' },
-        },
-      ];
-
-      prisma.telemetry.findMany.mockResolvedValue(mockRecords);
-      httpService.post.mockReturnValue(of(null));
+      llmProvider.call.mockResolvedValue(null);
 
       const result = await service.naturalLanguageQuery('query', 'org_001');
 
@@ -214,7 +187,7 @@ describe('AiService', () => {
       });
 
       prisma.telemetry.findMany.mockResolvedValue(records);
-      httpService.post.mockReturnValue(of({ data: { response: 'Temperature spike detected.' } }));
+      llmProvider.call.mockResolvedValue('Temperature spike detected.');
 
       const result = await service.detectAnomalies('device_1', 'org_001', 'temperature');
 
@@ -244,7 +217,7 @@ describe('AiService', () => {
       });
 
       prisma.telemetry.findMany.mockResolvedValue(records);
-      httpService.post.mockReturnValue(of({ data: { response: 'Explanation' } }));
+      llmProvider.call.mockResolvedValue('Explanation');
 
       // Low sensitivity (more anomalies detected)
       const lowSensitivityResult = await service.detectAnomalies(
@@ -316,7 +289,7 @@ describe('AiService', () => {
         { timestamp: new Date('2024-01-15T11:00:00Z'), metrics: { temperature: 52 } },
         { timestamp: new Date('2024-01-15T12:00:00Z'), metrics: { temperature: 51 } },
       ]);
-      httpService.post.mockReturnValue(of({ data: { response: 'No issues.' } }));
+      llmProvider.call.mockResolvedValue('No issues.');
 
       const result = await service.detectAnomalies('device_1', 'org_001', 'temperature');
 
@@ -331,12 +304,12 @@ describe('AiService', () => {
         { timestamp: new Date('2024-01-15T10:00:00Z'), metrics: { temperature: 70, humidity: 40 } },
         { timestamp: new Date('2024-01-15T11:00:00Z'), metrics: { temperature: 80, humidity: 50 } },
       ]);
-      httpService.post.mockReturnValue(of({ data: { response: 'Summary: temperatures are normal.' } }));
+      llmProvider.call.mockResolvedValue('Summary: temperatures are normal.');
 
       const result = await service.summarizeTelemetry(['device_1'], 'org_001');
 
       expect(result.summary).toBe('Summary: temperatures are normal.');
-      expect(result.source).toBe('ollama');
+      expect(result.source).toBe('llm');
       expect(result.devices).toHaveLength(1);
       expect(result.devices[0].deviceId).toBe('device_1');
       expect(result.devices[0].deviceName).toBe('Sensor 1');
@@ -349,12 +322,12 @@ describe('AiService', () => {
     it('should handle empty data', async () => {
       prisma.device.findFirst.mockResolvedValue({ id: 'device_1', name: 'Sensor 1' });
       prisma.telemetry.findMany.mockResolvedValue([]);
-      httpService.post.mockReturnValue(of({ data: { response: 'No data available.' } }));
+      llmProvider.call.mockResolvedValue('No data available.');
 
       const result = await service.summarizeTelemetry(['device_1'], 'org_001');
 
       expect(result.devices[0].metricStats).toEqual({});
-      expect(result.source).toBe('ollama');
+      expect(result.source).toBe('llm');
     });
 
     it('should skip devices not found in organization', async () => {
@@ -378,19 +351,19 @@ describe('AiService', () => {
           { timestamp: new Date(), metrics: { humidity: 60 } },
         ]);
 
-      httpService.post.mockReturnValue(of({ data: { response: 'Multi device summary.' } }));
+      llmProvider.call.mockResolvedValue('Multi device summary.');
 
       const result = await service.summarizeTelemetry(['device_1', 'device_2'], 'org_001');
 
       expect(result.devices).toHaveLength(2);
     });
 
-    it('should fall back to statistical summary when Ollama fails', async () => {
+    it('should fall back to statistical summary when LLM fails', async () => {
       prisma.device.findFirst.mockResolvedValue({ id: 'device_1', name: 'Sensor 1' });
       prisma.telemetry.findMany.mockResolvedValue([
         { timestamp: new Date(), metrics: { temp: 72 } },
       ]);
-      httpService.post.mockReturnValue(throwError(() => new Error('Ollama down')));
+      llmProvider.call.mockResolvedValue(null);
 
       const result = await service.summarizeTelemetry(['device_1'], 'org_001');
 
@@ -404,7 +377,7 @@ describe('AiService', () => {
         { timestamp: new Date(), metrics: { temperature: 72, status: 'online', flag: true } },
         { timestamp: new Date(), metrics: { temperature: 75, status: 'offline', flag: false } },
       ]);
-      httpService.post.mockReturnValue(of({ data: { response: 'Summary' } }));
+      llmProvider.call.mockResolvedValue('Summary');
 
       const result = await service.summarizeTelemetry(['device_1'], 'org_001');
 

@@ -14,34 +14,36 @@ import { persist } from "zustand/middleware";
 import { apiClient } from "@/lib/api-client";
 import type { AuthUser } from "@cortexgrid/types";
 
-interface AuthState {
-  /** The currently logged-in user's profile info (null if not logged in) */
-  user: AuthUser | null;
-  /** Short-lived token for API requests (expires in 15 minutes) */
-  accessToken: string | null;
-  /** Long-lived token used to get a new accessToken without re-login (expires in 7 days) */
-  refreshToken: string | null;
-  /** Quick check: is someone currently logged in? */
-  isAuthenticated: boolean;
-  /** Shows a loading spinner while login/register requests are in flight */
-  isLoading: boolean;
+/** Sync auth token to a cookie so Next.js middleware can read it server-side */
+function setAuthCookie(token: string | null) {
+  if (typeof document === "undefined") return;
+  if (token) {
+    document.cookie = `cortexgrid_access_token=${token}; path=/; max-age=${60 * 60 * 24 * 7}; SameSite=Lax`;
+  } else {
+    document.cookie = "cortexgrid_access_token=; path=/; max-age=0";
+  }
+}
 
-  /** Send email+password to the server, get tokens back */
+interface AuthState {
+  user: AuthUser | null;
+  accessToken: string | null;
+  refreshToken: string | null;
+  isAuthenticated: boolean;
+  isLoading: boolean;
+  selectedOrganizationId: string | null;
+
   login: (email: string, password: string) => Promise<void>;
-  /** Create a brand new account + organization */
   register: (
-    name: string,
+    firstName: string,
+    lastName: string,
     email: string,
     password: string,
-    confirmPassword: string,
-    organizationName?: string
+    organizationName: string
   ) => Promise<void>;
-  /** Wipe all auth state — equivalent to "sign out" */
   logout: () => void;
-  /** Use the refreshToken to get a fresh accessToken (called automatically on 401) */
   refresh: () => Promise<void>;
-  /** Update user profile without re-authenticating */
   setUser: (user: AuthUser) => void;
+  setSelectedOrganization: (id: string, name: string) => void;
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -52,6 +54,7 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       isAuthenticated: false,
       isLoading: false,
+      selectedOrganizationId: null,
 
       login: async (email: string, password: string) => {
         set({ isLoading: true });
@@ -63,14 +66,15 @@ export const useAuthStore = create<AuthState>()(
             user: AuthUser;
           }>("/auth/login", { email, password });
 
-          // Store tokens in the API client so all future requests include them
           apiClient.setTokens(result.accessToken, result.refreshToken);
+          setAuthCookie(result.accessToken);
           set({
             user: result.user,
             accessToken: result.accessToken,
             refreshToken: result.refreshToken,
             isAuthenticated: true,
             isLoading: false,
+            selectedOrganizationId: (result.user as any).organizationId ?? null,
           });
         } catch (error) {
           set({ isLoading: false });
@@ -79,19 +83,19 @@ export const useAuthStore = create<AuthState>()(
       },
 
       register: async (
-        name: string,
+        firstName: string,
+        lastName: string,
         email: string,
         password: string,
-        confirmPassword: string,
-        organizationName?: string
+        organizationName: string
       ) => {
         set({ isLoading: true });
         try {
           await apiClient.post("/auth/register", {
-            name,
+            firstName,
+            lastName,
             email,
             password,
-            confirmPassword,
             organizationName,
           });
           set({ isLoading: false });
@@ -102,13 +106,14 @@ export const useAuthStore = create<AuthState>()(
       },
 
       logout: () => {
-        // Clear both the API client headers AND the persisted store
         apiClient.clearTokens();
+        setAuthCookie(null);
         set({
           user: null,
           accessToken: null,
           refreshToken: null,
           isAuthenticated: false,
+          selectedOrganizationId: null,
         });
       },
 
@@ -121,6 +126,7 @@ export const useAuthStore = create<AuthState>()(
           }>("/auth/refresh");
 
           apiClient.setTokens(result.accessToken, result.refreshToken);
+          setAuthCookie(result.accessToken);
           set({
             user: result.user,
             accessToken: result.accessToken,
@@ -128,12 +134,13 @@ export const useAuthStore = create<AuthState>()(
             isAuthenticated: true,
           });
         } catch {
-          // If refresh fails, the session is truly expired — force logout
+          setAuthCookie(null);
           set({
             user: null,
             accessToken: null,
             refreshToken: null,
             isAuthenticated: false,
+            selectedOrganizationId: null,
           });
         }
       },
@@ -141,16 +148,19 @@ export const useAuthStore = create<AuthState>()(
       setUser: (user: AuthUser) => {
         set({ user });
       },
+
+      setSelectedOrganization: (id: string, _name: string) => {
+        set({ selectedOrganizationId: id });
+      },
     }),
     {
-      // Persist auth state to localStorage so it survives page refreshes
       name: "cortexgrid-auth",
-      // Only persist these fields (not isLoading — that should always start false)
       partialize: (state) => ({
         user: state.user,
         accessToken: state.accessToken,
         refreshToken: state.refreshToken,
         isAuthenticated: state.isAuthenticated,
+        selectedOrganizationId: state.selectedOrganizationId,
       }),
     }
   )

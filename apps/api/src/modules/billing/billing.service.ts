@@ -205,10 +205,10 @@ export class BillingService {
         mode: 'subscription',
         success_url:
           checkoutDto.successUrl ||
-          `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+          `${this.configService.get('FRONTEND_URL') || this.configService.get('NEXT_PUBLIC_API_URL') || 'http://localhost:3001'}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
         cancel_url:
           checkoutDto.cancelUrl ||
-          `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing/cancel`,
+          `${this.configService.get('FRONTEND_URL') || this.configService.get('NEXT_PUBLIC_API_URL') || 'http://localhost:3001'}/billing/cancel`,
         metadata: {
           organizationId,
           plan: checkoutDto.plan,
@@ -265,7 +265,7 @@ export class BillingService {
       customer: organization.stripeCustomerId,
       return_url:
         portalDto.returnUrl ||
-        `${this.configService.get('NEXT_PUBLIC_API_URL', 'http://localhost:3001')}/billing`,
+        `${this.configService.get('FRONTEND_URL') || this.configService.get('NEXT_PUBLIC_API_URL') || 'http://localhost:3001'}/billing`,
     });
 
     return {
@@ -400,6 +400,16 @@ export class BillingService {
         hasPrevPage: pagination.page > 1,
       },
     };
+  }
+
+  async getInvoice(invoiceId: string, organizationId: string) {
+    const record = await this.prisma.usageRecord.findFirst({
+      where: { id: invoiceId, organizationId },
+    });
+    if (!record) {
+      throw new Error('Invoice not found');
+    }
+    return record;
   }
 
   /**

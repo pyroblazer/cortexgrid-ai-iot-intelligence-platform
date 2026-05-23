@@ -7,12 +7,23 @@ import '@testing-library/jest-dom';
  * - Limits displayed alerts to `limit` prop
  * - Shows "No recent alerts" when empty
  * - Shows "View All" button when showViewAll=true
- * - Filters by title (deviceId prop)
+ * - Filters by deviceId (query param)
  */
 
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { AlertList } from '@/components/dashboard/alert-list';
+
+// Mock @cortexgrid/types
+jest.mock('@cortexgrid/types', () => ({}));
+
+// Mock the apiClient module
+const mockGet = jest.fn();
+jest.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: (...args: any[]) => mockGet(...args),
+  },
+}));
 
 // Mock @cortexgrid/ui/components/*
 jest.mock('@cortexgrid/ui/components/Badge', () => ({
@@ -57,89 +68,169 @@ jest.mock('next/link', () => {
   };
 });
 
+const MOCK_ALERTS = [
+  {
+    id: 'alert-1',
+    title: 'High Temperature Detected',
+    message: 'Temperature exceeded threshold of 30C (current: 35.2C)',
+    severity: 'CRITICAL',
+    device: { name: 'Temperature Sensor A1' },
+    createdAt: '2024-01-15T10:30:00Z',
+  },
+  {
+    id: 'alert-2',
+    title: 'Device Offline',
+    message: 'Device has been offline for 30 minutes',
+    severity: 'WARNING',
+    device: { name: 'Humidity Sensor B2' },
+    createdAt: '2024-01-15T10:25:00Z',
+  },
+  {
+    id: 'alert-3',
+    title: 'Low Battery Warning',
+    message: 'Battery level is below 15%',
+    severity: 'WARNING',
+    device: { name: 'Temperature Sensor A1' },
+    createdAt: '2024-01-15T10:20:00Z',
+  },
+  {
+    id: 'alert-4',
+    title: 'Humidity Spike',
+    message: 'Humidity level spike detected',
+    severity: 'INFO',
+    device: { name: 'Humidity Sensor B2' },
+    createdAt: '2024-01-15T10:15:00Z',
+  },
+  {
+    id: 'alert-5',
+    title: 'Firmware Update Available',
+    message: 'New firmware version 2.1.0 is available',
+    severity: 'INFO',
+    device: { name: 'Pressure Sensor C3' },
+    createdAt: '2024-01-15T10:10:00Z',
+  },
+];
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  // Default mock: return all alerts
+  mockGet.mockResolvedValue({ data: MOCK_ALERTS });
+});
+
 describe('AlertList component', () => {
-  it('renders "Recent Alerts" title', () => {
+  it('renders "Recent Alerts" title', async () => {
     render(<AlertList />);
     expect(screen.getByText('Recent Alerts')).toBeInTheDocument();
   });
 
-  it('renders alert titles from mock data', () => {
+  it('renders alert titles from API data', async () => {
     render(<AlertList />);
-    expect(screen.getByText('High Temperature Detected')).toBeInTheDocument();
-    expect(screen.getByText('Device Offline')).toBeInTheDocument();
-    expect(screen.getByText('Low Battery Warning')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('High Temperature Detected')).toBeInTheDocument();
+      expect(screen.getByText('Device Offline')).toBeInTheDocument();
+      expect(screen.getByText('Low Battery Warning')).toBeInTheDocument();
+    });
   });
 
-  it('renders severity badges', () => {
+  it('renders severity badges', async () => {
     render(<AlertList />);
-    const badges = screen.getAllByTestId('badge');
-    expect(badges.length).toBeGreaterThan(0);
-    expect(badges[0]).toHaveTextContent('CRITICAL');
+    await waitFor(() => {
+      const badges = screen.getAllByTestId('badge');
+      expect(badges.length).toBeGreaterThan(0);
+      expect(badges[0]).toHaveTextContent('CRITICAL');
+    });
   });
 
-  it('renders alert messages', () => {
+  it('renders alert messages', async () => {
     render(<AlertList />);
-    expect(
-      screen.getByText('Temperature exceeded threshold of 30C (current: 35.2C)')
-    ).toBeInTheDocument();
+    await waitFor(() => {
+      expect(
+        screen.getByText('Temperature exceeded threshold of 30C (current: 35.2C)')
+      ).toBeInTheDocument();
+    });
   });
 
-  it('renders device names', () => {
+  it('renders device names', async () => {
     render(<AlertList />);
-    expect(screen.getAllByText('Temperature Sensor A1').length).toBeGreaterThan(0);
+    await waitFor(() => {
+      expect(screen.getAllByText('Temperature Sensor A1').length).toBeGreaterThan(0);
+    });
   });
 
-  it('limits displayed alerts to limit prop', () => {
+  it('limits displayed alerts to limit prop', async () => {
+    // Return only 2 items when limit=2
+    mockGet.mockResolvedValue({ data: MOCK_ALERTS.slice(0, 2) });
     render(<AlertList limit={2} />);
-    // Mock data has 5 alerts; with limit=2 we should see only 2
-    const badges = screen.getAllByTestId('badge');
-    expect(badges).toHaveLength(2);
+    await waitFor(() => {
+      const badges = screen.getAllByTestId('badge');
+      expect(badges).toHaveLength(2);
+    });
   });
 
-  it('defaults limit to 5', () => {
+  it('defaults limit to 5', async () => {
     render(<AlertList />);
-    const badges = screen.getAllByTestId('badge');
-    expect(badges).toHaveLength(5);
+    await waitFor(() => {
+      const badges = screen.getAllByTestId('badge');
+      expect(badges).toHaveLength(5);
+    });
   });
 
-  it('shows "No recent alerts" when no alerts match filter', () => {
+  it('shows "No recent alerts" when no alerts match filter', async () => {
+    mockGet.mockResolvedValue({ data: [] });
     render(<AlertList deviceId="nonexistent-device-xyz" />);
-    expect(screen.getByText('No recent alerts')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('No recent alerts')).toBeInTheDocument();
+    });
   });
 
-  it('shows "View All" button when showViewAll=true', () => {
+  it('shows "View All" button when showViewAll=true', async () => {
     render(<AlertList showViewAll={true} />);
-    expect(screen.getByText('View All')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('View All')).toBeInTheDocument();
+    });
   });
 
-  it('does not show "View All" button by default', () => {
+  it('does not show "View All" button by default', async () => {
     render(<AlertList />);
+    await waitFor(() => {
+      expect(screen.getByText('High Temperature Detected')).toBeInTheDocument();
+    });
     expect(screen.queryByText('View All')).not.toBeInTheDocument();
   });
 
-  it('filters alerts by deviceId (title matching)', () => {
-    // The component filters by checking if the alert title includes the deviceId
-    // "High Temperature Detected" does NOT contain "humidity", but "Humidity Spike" does
-    render(<AlertList deviceId="humidity" />);
-    // Should find "Humidity Spike" since its title includes "humidity"
-    expect(screen.getByText('Humidity Spike')).toBeInTheDocument();
+  it('passes deviceId to API call as query param', async () => {
+    mockGet.mockResolvedValue({ data: [] });
+    render(<AlertList deviceId="device-xyz" />);
+    await waitFor(() => {
+      expect(mockGet).toHaveBeenCalledWith(
+        expect.stringContaining('deviceId=device-xyz')
+      );
+    });
   });
 
-  it('applies correct border class for CRITICAL severity', () => {
+  it('applies correct border class for CRITICAL severity', async () => {
+    mockGet.mockResolvedValue({ data: [MOCK_ALERTS[0]] });
     const { container } = render(<AlertList limit={1} />);
-    const alertItem = container.querySelector('[class*="border-l-"]');
-    expect(alertItem).toBeInTheDocument();
-    expect(alertItem?.className).toContain('border-l-danger-500');
+    await waitFor(() => {
+      const alertItem = container.querySelector('[class*="border-l-"]');
+      expect(alertItem).toBeInTheDocument();
+      expect(alertItem?.className).toContain('border-l-danger-500');
+    });
   });
 
-  it('renders shield alert icon for CRITICAL alerts', () => {
+  it('renders shield alert icon for CRITICAL alerts', async () => {
+    mockGet.mockResolvedValue({ data: [MOCK_ALERTS[0]] });
     render(<AlertList limit={1} />);
-    expect(screen.getByTestId('shield-alert-icon')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByTestId('shield-alert-icon')).toBeInTheDocument();
+    });
   });
 
-  it('renders formatted relative time', () => {
+  it('renders formatted relative time', async () => {
     render(<AlertList />);
-    const times = screen.getAllByText('5 minutes ago');
-    expect(times.length).toBeGreaterThan(0);
+    await waitFor(() => {
+      const times = screen.getAllByText('5 minutes ago');
+      expect(times.length).toBeGreaterThan(0);
+    });
   });
 });

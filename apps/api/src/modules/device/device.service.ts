@@ -34,6 +34,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { CreateDeviceDto } from './dto/create-device.dto';
 import { UpdateDeviceDto } from './dto/update-device.dto';
+import { SendCommandDto } from './dto/send-command.dto';
 
 /** Options for paginated device listing with optional filters. */
 interface FindAllOptions {
@@ -400,6 +401,75 @@ export class DeviceService {
     }
 
     return { deviceId, telemetry: latest };
+  }
+
+  /**
+   * Send a command to a device via Redis pub/sub.
+   *
+   * Publishes the command to a Redis channel that the MQTT worker subscribes
+   * to, which then forwards the command to the physical device over MQTT.
+   * Only ADMIN users can send commands (enforced at the controller level).
+   */
+  async sendCommand(
+    organizationId: string,
+    deviceId: string,
+    dto: SendCommandDto,
+  ) {
+    const device = await this.prisma.device.findFirst({
+      where: { id: deviceId, organizationId, isActive: true },
+    });
+
+    if (!device) {
+      throw new NotFoundException('Device not found');
+    }
+
+    const channel = `cortexgrid:devices:${deviceId}/commands`;
+    const message = JSON.stringify({
+      command: dto.command,
+      payload: dto.payload ?? {},
+      deviceId,
+      organizationId,
+      timestamp: new Date().toISOString(),
+    });
+
+    await this.redisService.publish(channel, message);
+
+    this.logger.log(`Command "${dto.command}" sent to device ${deviceId}`);
+    return { success: true, command: dto.command, deviceId };
+  }
+
+  /**
+   * Get dashboard statistics for an organization.
+   *
+   * Returns aggregate counts of devices (total, online, offline) and
+   * active alerts. Useful for the main dashboard overview page.
+   */
+  async getStats(organizationId: string) {
+    const [totalDevices, onlineDevices, offlineDevices, activeAlerts] =
+      await Promise.all([
+        this.prisma.device.count({
+          where: { organizationId, isActive: true },
+        }),
+        this.prisma.device.count({
+          where: {
+            organizationId,
+            isActive: true,
+            status: DeviceStatus.ONLINE,
+          },
+        }),
+        this.prisma.device.count({
+          where: {
+            organizationId,
+            isActive: true,
+            status: DeviceStatus.OFFLINE,
+          },
+        }),
+        this.prisma.alert.count({
+          where: { organizationId, status: 'ACTIVE' },
+        }),
+      ]);
+
+    return { totalDevices, onlineDevices, offlineDevices, activeAlerts };
   }
 
   /**

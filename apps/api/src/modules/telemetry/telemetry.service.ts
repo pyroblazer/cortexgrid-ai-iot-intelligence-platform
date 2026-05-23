@@ -25,6 +25,7 @@
 import { Injectable, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { UsageService } from '../../common/usage/usage.service';
 import { IngestTelemetryDto, QueryTelemetryDto } from './dto/ingest-telemetry.dto';
 
 @Injectable()
@@ -34,6 +35,7 @@ export class TelemetryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
+    private readonly usageService: UsageService,
   ) {}
 
   /**
@@ -81,6 +83,9 @@ export class TelemetryService {
         metrics: ingestDto.metrics,
       },
     });
+
+    // Track usage for billing/analytics
+    await this.usageService.increment(organizationId, 'telemetryCount', 1).catch(() => {});
 
     // Cache the latest reading in Redis with a 5-minute TTL.
     // WHY? Dashboards frequently poll for the "current reading" of each device.

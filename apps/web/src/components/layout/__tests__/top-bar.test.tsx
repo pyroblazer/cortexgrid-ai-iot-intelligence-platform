@@ -1,6 +1,6 @@
 import '@testing-library/jest-dom';
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
 const mockPush = jest.fn();
 const mockPathname = jest.fn(() => '/dashboard');
@@ -8,6 +8,16 @@ const mockPathname = jest.fn(() => '/dashboard');
 jest.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => mockPathname(),
+}));
+
+jest.mock('@/lib/api-client', () => ({
+  apiClient: {
+    get: jest.fn(),
+  },
+}));
+
+jest.mock('@/stores/auth-store', () => ({
+  useAuthStore: jest.fn(),
 }));
 
 jest.mock('lucide-react', () => ({
@@ -22,6 +32,48 @@ jest.mock('lucide-react', () => ({
 }));
 
 import { TopBar } from '@/components/layout/top-bar';
+import { apiClient } from '@/lib/api-client';
+import { useAuthStore } from '@/stores/auth-store';
+
+const mockUser = {
+  id: 'user-1',
+  firstName: 'John',
+  lastName: 'Doe',
+  email: 'john@example.com',
+};
+
+const mockNotifications = {
+  count: 3,
+  data: [
+    {
+      id: 'notif-1',
+      title: 'High Temperature Alert',
+      message: 'Device sensor-1 exceeded threshold',
+      type: 'ALERT',
+      createdAt: '2024-01-15T10:30:00Z',
+      isRead: false,
+    },
+    {
+      id: 'notif-2',
+      title: 'Device Offline',
+      message: 'Device sensor-2 went offline',
+      type: 'ALERT',
+      createdAt: '2024-01-15T10:25:00Z',
+      isRead: false,
+    },
+    {
+      id: 'notif-3',
+      title: 'Firmware Update',
+      message: 'New firmware available',
+      type: 'SYSTEM',
+      createdAt: '2024-01-15T10:20:00Z',
+      isRead: false,
+    },
+  ],
+};
+
+const mockGet = apiClient.get as jest.Mock;
+const mockUseAuthStore = useAuthStore as jest.Mock;
 
 describe('TopBar', () => {
   const defaultProps = { onToggleSidebar: jest.fn() };
@@ -29,6 +81,23 @@ describe('TopBar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPathname.mockReturnValue('/dashboard');
+    // Default: return user + notifications
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const state = {
+        user: mockUser,
+        logout: jest.fn(),
+      };
+      return selector(state);
+    });
+    mockGet.mockImplementation((url: string) => {
+      if (url.includes('/notifications/unread-count')) {
+        return Promise.resolve({ count: 3 });
+      }
+      if (url.includes('/notifications')) {
+        return Promise.resolve({ data: mockNotifications.data });
+      }
+      return Promise.resolve(null);
+    });
   });
 
   it('renders the toggle sidebar button', () => {
@@ -146,45 +215,69 @@ describe('TopBar', () => {
     expect(mockPush).not.toHaveBeenCalled();
   });
 
-  it('opens notifications panel when bell is clicked', () => {
+  it('opens notifications panel when bell is clicked', async () => {
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('Notifications'));
-    expect(screen.getByText('Notifications')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('Notifications')).toBeInTheDocument();
+    });
   });
 
-  it('shows notification items when panel is open', () => {
+  it('shows notification items when panel is open', async () => {
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('Notifications'));
-    expect(screen.getByText('High Temperature Alert')).toBeInTheDocument();
-    expect(screen.getByText('Device Offline')).toBeInTheDocument();
-    expect(screen.getByText('Firmware Update')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('High Temperature Alert')).toBeInTheDocument();
+      expect(screen.getByText('Device Offline')).toBeInTheDocument();
+      expect(screen.getByText('Firmware Update')).toBeInTheDocument();
+    });
   });
 
-  it('opens user dropdown when user button is clicked', () => {
+  it('opens user dropdown when user button is clicked', async () => {
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('User menu'));
-    expect(screen.getByText('John Doe')).toBeInTheDocument();
-    expect(screen.getByText('john@example.com')).toBeInTheDocument();
+    await waitFor(() => {
+      expect(screen.getByText('John Doe')).toBeInTheDocument();
+      expect(screen.getByText('john@example.com')).toBeInTheDocument();
+    });
   });
 
-  it('navigates to /settings when Profile is clicked', () => {
+  it('navigates to /settings when Profile is clicked', async () => {
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('User menu'));
+    await waitFor(() => {
+      expect(screen.getByText('Profile')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByText('Profile'));
     expect(mockPush).toHaveBeenCalledWith('/settings');
   });
 
-  it('navigates to /settings when Settings is clicked', () => {
+  it('navigates to /settings when Settings is clicked', async () => {
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('User menu'));
+    await waitFor(() => {
+      expect(screen.getByText('Settings')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByText('Settings'));
     expect(mockPush).toHaveBeenCalledWith('/settings');
   });
 
-  it('navigates to /login when Logout is clicked', () => {
+  it('navigates to /login when Logout is clicked', async () => {
+    const mockLogout = jest.fn();
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const state = {
+        user: mockUser,
+        logout: mockLogout,
+      };
+      return selector(state);
+    });
     render(<TopBar {...defaultProps} />);
     fireEvent.click(screen.getByLabelText('User menu'));
+    await waitFor(() => {
+      expect(screen.getByText('Logout')).toBeInTheDocument();
+    });
     fireEvent.click(screen.getByText('Logout'));
+    expect(mockLogout).toHaveBeenCalled();
     expect(mockPush).toHaveBeenCalledWith('/login');
   });
 });

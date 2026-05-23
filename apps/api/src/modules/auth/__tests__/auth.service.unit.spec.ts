@@ -5,6 +5,7 @@ import { UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { AuthService } from '../auth.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { EmailService } from '../../../common/email/email.service';
 
 jest.mock('bcrypt', () => ({
   hash: jest.fn(() => Promise.resolve('$2b$12$hashedpassword')),
@@ -92,6 +93,11 @@ describe('AuthService', () => {
     }),
   };
 
+  const mockEmailService = {
+    isConfigured: jest.fn().mockReturnValue(false),
+    send: jest.fn().mockResolvedValue(undefined),
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
 
@@ -102,6 +108,7 @@ describe('AuthService', () => {
         { provide: JwtService, useValue: mockJwt },
         { provide: ConfigService, useValue: mockConfig },
         { provide: RedisService, useValue: mockRedis },
+        { provide: EmailService, useValue: mockEmailService },
       ],
     }).compile();
 

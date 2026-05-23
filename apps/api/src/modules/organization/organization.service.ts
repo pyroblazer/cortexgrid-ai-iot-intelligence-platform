@@ -39,8 +39,10 @@ import {
   Logger,
 } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
+import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
+import { EmailService } from '../../common/email/email.service';
 import { UpdateOrganizationDto } from './dto/update-organization.dto';
 import { InviteMemberDto } from './dto/invite-member.dto';
 import { UpdateMemberRoleDto } from './dto/update-member-role.dto';
@@ -52,6 +54,8 @@ export class OrganizationService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly redisService: RedisService,
+    private readonly emailService: EmailService,
+    private readonly configService: ConfigService,
   ) {}
 
   /**
@@ -236,6 +240,42 @@ export class OrganizationService {
     this.logger.log(
       `Invitation created: ${email} to organization ${organizationId}`,
     );
+
+    // Send invitation email if email is configured
+    if (this.emailService.isConfigured()) {
+      const frontendUrl = this.configService.get<string>('FRONTEND_URL', 'http://localhost:3000');
+      const inviteLink = `${frontendUrl}/accept-invitation?token=${token}`;
+      const orgName = invitation.organization.name;
+
+      try {
+        await this.emailService.send(
+          email,
+          `You're invited to join ${orgName} on CortexGrid`,
+          `
+          <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 32px; border-radius: 12px 12px 0 0; text-align: center;">
+              <h1 style="color: white; margin: 0; font-size: 24px;">CortexGrid</h1>
+            </div>
+            <div style="padding: 32px; background: white; border: 1px solid #e5e7eb; border-top: none; border-radius: 0 0 12px 12px;">
+              <h2 style="color: #111827; margin-top: 0;">You're invited!</h2>
+              <p style="color: #6b7280; font-size: 16px;">
+                You've been invited to join <strong>${orgName}</strong> on CortexGrid.
+              </p>
+              <a href="${inviteLink}" style="display: inline-block; background: #3b82f6; color: white; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0;">
+                Accept Invitation
+              </a>
+              <p style="color: #9ca3af; font-size: 14px;">
+                This invitation expires in 7 days. If you didn't expect this, you can ignore this email.
+              </p>
+            </div>
+          </div>
+          `,
+        );
+        this.logger.log(`Invitation email sent to ${email}`);
+      } catch (err) {
+        this.logger.warn(`Failed to send invitation email to ${email}: ${err instanceof Error ? err.message : 'Unknown error'}`);
+      }
+    }
 
     return {
       id: invitation.id,

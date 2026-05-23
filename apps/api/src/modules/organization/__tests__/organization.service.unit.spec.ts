@@ -7,6 +7,8 @@ import {
 import { OrganizationService } from '../organization.service';
 import { PrismaService } from '../../../common/prisma/prisma.service';
 import { RedisService } from '../../../common/redis/redis.service';
+import { EmailService } from '../../../common/email/email.service';
+import { ConfigService } from '@nestjs/config';
 
 // Mock uuid to return predictable values
 jest.mock('uuid', () => ({
@@ -60,12 +62,23 @@ describe('OrganizationService', () => {
     del: jest.fn().mockResolvedValue(undefined),
   };
 
+  const mockEmailService = {
+    isConfigured: jest.fn().mockReturnValue(false),
+    send: jest.fn().mockResolvedValue(undefined),
+  };
+
+  const mockConfigService = {
+    get: jest.fn((key: string, defaultValue?: string) => defaultValue),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         OrganizationService,
         { provide: PrismaService, useValue: mockPrisma },
         { provide: RedisService, useValue: mockRedisService },
+        { provide: EmailService, useValue: mockEmailService },
+        { provide: ConfigService, useValue: mockConfigService },
       ],
     }).compile();
 

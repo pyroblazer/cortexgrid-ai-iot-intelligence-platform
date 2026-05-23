@@ -150,4 +150,57 @@ describe('Auth (integration)', () => {
         .expect(200);
     });
   });
+
+  describe('POST /auth/forgot-password', () => {
+    it('should return success regardless of email existence', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'nonexistent@test.com' })
+        .expect(200)
+        .expect((res: any) => {
+          expect(res.body.success).toBe(true);
+          expect(res.body.message).toBeDefined();
+        });
+    });
+
+    it('should return success for existing email', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: TEST_USER.email })
+        .expect(200)
+        .expect((res: any) => {
+          expect(res.body.success).toBe(true);
+        });
+    });
+
+    it('should reject invalid email format', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/forgot-password')
+        .send({ email: 'not-an-email' })
+        .expect(400);
+    });
+  });
+
+  describe('POST /auth/reset-password', () => {
+    it('should reject invalid reset token', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'invalid-token-12345', newPassword: 'NewP@ss12345' })
+        .expect(400);
+    });
+
+    it('should reject missing token', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ newPassword: 'NewP@ss12345' })
+        .expect(400);
+    });
+
+    it('should reject short password', () => {
+      return request(app.getHttpServer())
+        .post('/api/v1/auth/reset-password')
+        .send({ token: 'some-token', newPassword: 'short' })
+        .expect(400);
+    });
+  });
 });

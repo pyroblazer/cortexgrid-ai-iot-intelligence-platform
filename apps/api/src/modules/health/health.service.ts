@@ -1,7 +1,8 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { ConfigService } from '@nestjs/config';
+import { MqttService } from '../telemetry/mqtt/mqtt.service';
 
 @Injectable()
 export class HealthService {
@@ -9,6 +10,7 @@ export class HealthService {
     private prisma: PrismaService,
     private redis: RedisService,
     private configService: ConfigService,
+    @Optional() private mqttService: MqttService | null,
   ) {}
 
   async check() {
@@ -43,6 +45,22 @@ export class HealthService {
         status: 'down',
         details: error instanceof Error ? error.message : 'Unknown error',
       };
+    }
+
+    // Check MQTT (optional — may be absent in REST-only serverless mode)
+    if (this.mqttService) {
+      try {
+        const mqttConnected = this.mqttService.isConnected();
+        services.mqtt = {
+          status: mqttConnected ? 'up' : 'down',
+          details: mqttConnected ? 'Connected to broker' : 'Not connected to broker',
+        };
+      } catch (error) {
+        services.mqtt = {
+          status: 'down',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        };
+      }
     }
 
     const allUp = Object.values(services).every((s) => s.status === 'up');

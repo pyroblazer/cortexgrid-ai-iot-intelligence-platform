@@ -10,6 +10,6 @@ import { RedisModule } from '../../common/redis/redis.module';
   imports: [PrismaModule, RedisModule],
   controllers: [TelemetryController],
   providers: [TelemetryService, TelemetryGateway, MqttService],
-  exports: [TelemetryService],
+  exports: [TelemetryService, MqttService],
 })
 export class TelemetryModule {}

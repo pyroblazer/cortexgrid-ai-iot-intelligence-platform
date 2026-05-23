@@ -95,5 +95,28 @@ describe('Notification (integration)', () => {
           expect(res.body.data.push).toBe(true);
         });
     });
+
+    it('should persist preferences so they survive re-read', async () => {
+      // Set unique preferences
+      await request(app.getHttpServer())
+        .put('/api/v1/notifications/preferences')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .send({
+          preferences: {
+            billing: false,
+            weeklyReport: false,
+          },
+        })
+        .expect(200);
+
+      // Re-read should return the persisted values
+      const res = await request(app.getHttpServer())
+        .get('/api/v1/notifications/preferences')
+        .set('Authorization', `Bearer ${accessToken}`)
+        .expect(200);
+
+      expect(res.body.data.billing).toBe(false);
+      expect(res.body.data.weeklyReport).toBe(false);
+    });
   });
 });

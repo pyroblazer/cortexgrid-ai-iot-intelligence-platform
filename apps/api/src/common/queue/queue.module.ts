@@ -8,13 +8,16 @@ import { PrismaModule } from '../prisma/prisma.module';
   imports: [
     BullModule.forRootAsync({
       imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
         connection: {
-          host: configService.get('REDIS_HOST', 'localhost'),
-          port: configService.get<number>('REDIS_PORT', 6379),
+          host: config.get<string>('REDIS_HOST', 'localhost'),
+          port: config.get<number>('REDIS_PORT', 6379),
+          password: config.get<string>('REDIS_PASSWORD') || undefined,
+          db: config.get<number>('REDIS_DB', 0),
+          tls: config.get<string>('REDIS_TLS') === 'true' ? {} : undefined,
         },
       }),
-      inject: [ConfigService],
     }),
     BullModule.registerQueue(
       { name: 'telemetry-processing' },

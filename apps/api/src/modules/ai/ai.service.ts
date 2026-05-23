@@ -1,40 +1,17 @@
 /**
  * @file ai.service.ts
- * @description AI-powered analytics service using Ollama (local LLM) for natural
- * language queries, z-score anomaly detection, and telemetry summarization.
+ * @description AI-powered analytics service using a dual LLM provider system
+ * (Groq cloud / Ollama local) for natural language queries, z-score anomaly
+ * detection, and telemetry summarization.
  *
- * ELI5: This file gives the platform a "smart brain" that can:
- *   - Answer questions about sensor data in plain English ("What was the average temperature yesterday?")
- *   - Detect when sensor readings are behaving weirdly (anomaly detection)
- *   - Write human-readable summaries of what's happening with devices
- *
- * KEY CONCEPTS:
- *   - Ollama Integration: Ollama is a tool that runs AI models (like Llama 3.2)
- *     locally on the server. Instead of paying for OpenAI/ChatGPT API calls,
- *     we run the AI on our own hardware. If Ollama is down or not installed,
- *     we gracefully fall back to simple statistical summaries.
- *
- *   - Z-Score Anomaly Detection: A statistical method to find "weird" values.
- *     ELI5: Imagine you're monitoring temperature. Most readings are around 70F.
- *     The z-score tells you how unusual a reading is compared to the average.
- *     A z-score of 3 means "this reading is 3 standard deviations away from normal" -
- *     extremely rare and worth investigating. Default sensitivity is 2.0, meaning
- *     anything more than 2 standard deviations from average is flagged as anomalous.
- *
- *   - Graceful Degradation: Every AI feature has a statistical fallback.
- *     If Ollama is unavailable, users still get useful (if less eloquent) results.
- *
- * WHY local LLM (Ollama) instead of cloud AI?
- *   - Privacy: IoT telemetry data stays on your infrastructure
- *   - Cost: No per-token API charges
- *   - Latency: No network round-trip to an external API
- *   - Offline capability: Works without internet access
+ * The active LLM provider is selected at startup by the AI module based on
+ * available env vars. Falls back to statistical summaries if no provider is
+ * configured or if the provider call fails.
  */
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { HttpService } from '@nestjs/axios';
-import { firstValueFrom, timeout, catchError, of } from 'rxjs';
+import { UsageService } from '../../common/usage/usage.service';
+import { LlmProvider } from './providers/llm-provider.interface';
 
 /** Time range filter for queries. */
 interface TimeRange {
@@ -52,19 +29,12 @@ export interface AnomalyPoint {
 @Injectable()
 export class AiService {
   private readonly logger = new Logger(AiService.name);
-  /** Base URL where Ollama is running (default: localhost:11434). */
-  private readonly ollamaBaseUrl: string;
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly configService: ConfigService,
-    private readonly httpService: HttpService,
-  ) {
-    this.ollamaBaseUrl = this.configService.get<string>(
-      'OLLAMA_BASE_URL',
-      'http://localhost:11434',
-    );
-  }
+    @Inject('LLM_PROVIDER') private readonly llmProvider: LlmProvider | null,
+    private readonly usageService: UsageService,
+  ) {}
 
   /**
    * Answer a natural language question about IoT telemetry data.
@@ -73,9 +43,9 @@ export class AiService {
    * on the basement sensor last week?" This method:
    *   1. Fetches relevant telemetry data from the database
    *   2. Builds a text summary of the data
-   *   3. Sends the summary + the user's question to Ollama
-   *   4. Ollama generates a human-readable answer
-   *   5. If Ollama is unavailable, generates a statistical fallback answer
+   *   3. Sends the summary + the user's question to the LLM provider
+   *   4. The LLM generates a human-readable answer
+   *   5. If no provider is available, generates a statistical fallback answer
    *
    * WHY limit to 500 records? LLMs have context windows (memory limits).
    * Sending thousands of records would exceed the model's context and
@@ -87,6 +57,8 @@ export class AiService {
     deviceIds?: string[],
     timeRange?: TimeRange,
   ) {
+    await this.usageService.increment(organizationId, 'aiQueries', 1).catch(() => {});
+
     const startTime = timeRange?.start
       ? new Date(timeRange.start)
       : new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -137,14 +109,14 @@ User Question: ${query}
 
 Provide a clear, concise answer. Include specific numbers from the data when relevant.`;
 
-    const ollamaResponse = await this.callOllama(prompt);
+    const llmResponse = await this.callLlm(prompt);
 
-    if (ollamaResponse) {
+    if (llmResponse) {
       return {
         query,
-        response: ollamaResponse,
+        response: llmResponse,
         dataPoints: telemetryRecords.length,
-        source: 'ollama',  // Indicates the answer came from the AI model
+        source: 'llm',
         timeRange: {
           start: startTime.toISOString(),
           end: endTime.toISOString(),
@@ -152,7 +124,7 @@ Provide a clear, concise answer. Include specific numbers from the data when rel
       };
     }
 
-    // Ollama failed - fall back to a statistical summary (numbers without prose).
+    // LLM failed - fall back to a statistical summary (numbers without prose).
     const statisticalSummary = this.generateStatisticalSummary(telemetryRecords);
     return {
       query,
@@ -182,7 +154,7 @@ Provide a clear, concise answer. Include specific numbers from the data when rel
    * A sensitivity of 2.0 means: "flag anything more than 2 standard deviations
    * from the mean." Lower sensitivity = more anomalies flagged. Higher = stricter.
    *
-   * After detection, we optionally ask Ollama to explain WHY the anomalies
+   * After detection, we optionally ask the LLM to explain WHY the anomalies
    * might have occurred (e.g., "The temperature spike at 3 AM suggests a
    * malfunctioning HVAC system").
    */
@@ -193,6 +165,8 @@ Provide a clear, concise answer. Include specific numbers from the data when rel
     timeRange?: TimeRange,
     sensitivity: number = 2.0,
   ) {
+    await this.usageService.increment(organizationId, 'aiQueries', 1).catch(() => {});
+
     const device = await this.prisma.device.findFirst({
       where: { id: deviceId, organizationId, isActive: true },
     });
@@ -309,8 +283,8 @@ The anomalies occurred at these times:
 ${anomalySummary}
 Provide a brief (2-3 sentence) explanation of what might be happening.`;
 
-      const ollamaExplanation = await this.callOllama(anomalyPrompt);
-      explanation = ollamaExplanation || `Detected ${anomalies.length} anomalies in ${metric} data. Values deviate more than ${sensitivity} standard deviations from the mean of ${statistics.mean}.`;
+      const llmExplanation = await this.callLlm(anomalyPrompt);
+      explanation = llmExplanation || `Detected ${anomalies.length} anomalies in ${metric} data. Values deviate more than ${sensitivity} standard deviations from the mean of ${statistics.mean}.`;
     } else {
       explanation = `No anomalies detected in ${metric} data within the specified sensitivity threshold (${sensitivity} sigma).`;
     }
@@ -333,7 +307,7 @@ Provide a brief (2-3 sentence) explanation of what might be happening.`;
    * Summarize telemetry data for multiple devices using AI.
    *
    * ELI5: Gathers statistical summaries (avg, min, max) for each device's
-   * metrics, then asks the AI to write a short "executive summary" of
+   * metrics, then asks the LLM to write a short "executive summary" of
    * what's happening. Useful for dashboard widgets and daily reports.
    */
   async summarizeTelemetry(
@@ -341,6 +315,8 @@ Provide a brief (2-3 sentence) explanation of what might be happening.`;
     organizationId: string,
     timeRange?: TimeRange,
   ) {
+    await this.usageService.increment(organizationId, 'aiQueries', 1).catch(() => {});
+
     const startTime = timeRange?.start
       ? new Date(timeRange.start)
       : new Date(Date.now() - 24 * 60 * 60 * 1000);
@@ -422,7 +398,7 @@ Provide a brief (2-3 sentence) explanation of what might be happening.`;
       })
       .join('\n\n');
 
-    // Ask the AI to write a 3-5 sentence dashboard summary.
+    // Ask the LLM to write a 3-5 sentence dashboard summary.
     const prompt = `You are an IoT data analyst for the CortexGrid platform. Summarize the following telemetry data in a clear, concise manner for a dashboard. Highlight any notable patterns, trends, or issues.
 
 Time Range: ${startTime.toISOString()} to ${endTime.toISOString()}
@@ -432,11 +408,11 @@ ${summaryContext}
 
 Provide a 3-5 sentence summary that would be useful for a monitoring dashboard.`;
 
-    const ollamaSummary = await this.callOllama(prompt);
+    const llmSummary = await this.callLlm(prompt);
 
     return {
-      summary: ollamaSummary || summaryContext,
-      source: ollamaSummary ? 'ollama' : 'statistical',
+      summary: llmSummary || summaryContext,
+      source: llmSummary ? 'llm' : 'statistical',
       devices: summaries,
       timeRange: {
         start: startTime.toISOString(),
@@ -446,51 +422,22 @@ Provide a 3-5 sentence summary that would be useful for a monitoring dashboard.`
   }
 
   /**
-   * Call the local Ollama API to generate a response from the LLM.
+   * Call the configured LLM provider to generate a response.
    *
-   * ELI5: Sends a text prompt to the AI model running on our server and
-   * waits for its response. If the AI is busy, down, or not installed,
-   * returns null so the calling method can use a fallback.
+   * ELI5: Sends a text prompt to whichever AI model is active (Groq cloud
+   * or Ollama local) and waits for its response. If no provider is configured
+   * or the call fails, returns null so the calling method can use a fallback.
    *
    * Design decisions:
-   *   - stream: false - We want the complete response, not a streaming one
-   *   - temperature: 0.3 - Low creativity for factual, data-based answers
-   *   - num_predict: 512 - Limit response length to keep it concise
-   *   - 30 second timeout - Don't hang forever if the model is slow
-   *   - Graceful error handling - Never throw, always return null on failure
+   *   - Delegates to the injected LlmProvider (selected at module startup)
+   *   - Graceful error handling - never throws, always returns null on failure
    */
-  private async callOllama(prompt: string, model: string = 'llama3.2'): Promise<string | null> {
-    try {
-      const response = await firstValueFrom(
-        this.httpService
-          .post(`${this.ollamaBaseUrl}/api/generate`, {
-            model,
-            prompt,
-            stream: false,            // Wait for complete response (not streaming)
-            options: {
-              temperature: 0.3,       // Low temperature = more deterministic/factual
-              num_predict: 512,       // Max tokens to generate (keeps responses concise)
-            },
-          })
-          .pipe(
-            timeout(30000),           // 30-second timeout - don't wait forever
-            catchError((error: any) => {
-              // Log the failure but don't crash - return null for fallback.
-              this.logger.warn(`Ollama call failed: ${error?.message || 'Unknown error'}`);
-              return of(null);
-            }),
-          ),
-      );
-
-      if (!response || !response.data) {
-        return null;
-      }
-
-      return response.data.response || null;
-    } catch (error: any) {
-      this.logger.warn(`Ollama unavailable, using fallback: ${error.message}`);
+  private async callLlm(prompt: string): Promise<string | null> {
+    if (!this.llmProvider) {
       return null;
     }
+
+    return this.llmProvider.call(prompt);
   }
 
   /**
@@ -573,7 +520,7 @@ Provide a 3-5 sentence summary that would be useful for a monitoring dashboard.`
       stats[key] = {
         min: Math.min(...values),
         max: Math.max(...values),
-        avg: Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 100) / 100,
+        avg: Math.round((values.reduce((a, b) => a + b, 0) / values.length) * 1000) / 100,
       };
     }
 
@@ -581,7 +528,7 @@ Provide a 3-5 sentence summary that would be useful for a monitoring dashboard.`
   }
 
   /**
-   * Generate a plain-text statistical summary when Ollama is unavailable.
+   * Generate a plain-text statistical summary when no LLM provider is available.
    *
    * ELI5: If the AI brain is offline, we just list the raw numbers:
    * "Found 500 telemetry readings across 3 devices. Temperature: min=65,

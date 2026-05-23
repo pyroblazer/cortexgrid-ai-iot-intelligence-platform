@@ -1,32 +1,6 @@
-/**
- * Dashboard Page (app/(dashboard)/dashboard/page.tsx)
- *
- * WHAT: The main dashboard that users see after logging in. It provides a bird's-eye
- *       view of their entire IoT infrastructure -- how many devices they have, which
- *       are online, recent alerts, and live telemetry data.
- *
- * WHY IT EXISTS: This is the "mission control" of the app. Instead of making users
- *               dig through individual device pages to understand their system, this
- *               page summarizes everything at a glance so they can quickly spot problems.
- *
- * Layout structure (top to bottom):
- *   1. Page title + subtitle
- *   2. KPI Cards row: 4 metric cards showing key numbers at a glance
- *      - Total Devices, Active Devices, Active Alerts, Data Points (24h)
- *      - Each card shows the current value and a percentage change from a previous period
- *   3. Middle row: Real-time telemetry chart (2/3 width) + Device status bars (1/3)
- *   4. Bottom row: Recent alerts list (2/3 width) + Quick action buttons (1/3)
- *
- * Data flow:
- *   - KPI values and chart data are currently hardcoded (mock data).
- *   - In production, these would come from API calls via React Query.
- *   - The TelemetryChart component connects to WebSockets for live data streaming.
- *   - The AlertList component fetches recent alerts from the API.
- */
-
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useState, useCallback } from "react";
 import {
   Cpu,
   Wifi,
@@ -40,30 +14,67 @@ import { Card, CardContent, CardHeader, CardTitle } from "@cortexgrid/ui/compone
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { TelemetryChart } from "@/components/dashboard/telemetry-chart";
 import { AlertList } from "@/components/dashboard/alert-list";
+import { apiClient } from "@/lib/api-client";
 
-/**
- * DashboardPage - The main overview page for the IoT platform.
- *
- * This page is organized in a grid layout that adapts to screen size:
- * - On phones: everything stacks vertically
- * - On tablets: 2-column grid for KPI cards
- * - On desktops: 4-column KPI row, 3-column content rows
- */
+interface DeviceStats {
+  totalDevices: number;
+  onlineDevices: number;
+  offlineDevices: number;
+  maintenanceDevices: number;
+}
+
+interface AlertStats {
+  total: number;
+  active: number;
+  acknowledged: number;
+  resolved: number;
+}
+
 export default function DashboardPage() {
-  // Device status breakdown data used for the progress bars in the status card.
-  // useMemo prevents re-creating this array on every render since the data is static.
-  const pieData = useMemo(
-    () => [
-      { name: "Online", value: 42, color: "#22c55e" },
-      { name: "Offline", value: 7, color: "#ef4444" },
-      { name: "Maintenance", value: 3, color: "#3b82f6" },
-    ],
-    []
-  );
+  const [deviceStats, setDeviceStats] = useState<DeviceStats | null>(null);
+  const [alertStats, setAlertStats] = useState<AlertStats | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = useCallback(async () => {
+    try {
+      const [devices, alerts] = await Promise.all([
+        apiClient.get<DeviceStats>("/devices/stats"),
+        apiClient.get<{ data: AlertStats[]; meta: { total: number } }>("/alerts?limit=1"),
+      ]);
+      setDeviceStats(devices);
+      // Derive alert counts from the alerts list - the meta.total gives active count
+      setAlertStats({
+        total: alerts.meta?.total ?? 0,
+        active: alerts.meta?.total ?? 0,
+        acknowledged: 0,
+        resolved: 0,
+      });
+    } catch {
+      // Stats will remain null and cards show 0
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  const totalDevices = deviceStats?.totalDevices ?? 0;
+  const onlineDevices = deviceStats?.onlineDevices ?? 0;
+  const offlineDevices = deviceStats?.offlineDevices ?? 0;
+  const maintenanceDevices = deviceStats?.maintenanceDevices ?? 0;
+
+  const pieData = [
+    { name: "Online", value: onlineDevices, color: "#22c55e" },
+    { name: "Offline", value: offlineDevices, color: "#ef4444" },
+    { name: "Maintenance", value: maintenanceDevices, color: "#3b82f6" },
+  ];
+
+  const totalForBars = onlineDevices + offlineDevices + maintenanceDevices;
 
   return (
     <div className="space-y-6">
-      {/* Page header */}
       <div>
         <h1 className="text-2xl font-bold text-dark-900 dark:text-dark-50">
           Dashboard
@@ -73,53 +84,34 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* ROW 1: KPI (Key Performance Indicator) Cards
-          These 4 cards give users the most important numbers at a glance.
-          Each card shows: title, big number, trend arrow with % change, and an icon.
-          - "change" is a percentage: positive = green arrow up, negative = red arrow down
-          - "color" controls the icon background color scheme */}
       <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           title="Total Devices"
-          value={52}
-          change={12.5}
-          changeLabel="vs last month"
+          value={totalDevices}
           icon={<Cpu className="h-5 w-5" />}
           color="primary"
         />
         <KpiCard
           title="Active Devices"
-          value={42}
-          change={8.2}
-          changeLabel="vs last month"
+          value={onlineDevices}
           icon={<Wifi className="h-5 w-5" />}
           color="success"
         />
-        {/* Negative change (-15.3) shows as a red down-arrow, but fewer alerts is good! */}
         <KpiCard
           title="Active Alerts"
-          value={7}
-          change={-15.3}
-          changeLabel="vs last week"
+          value={alertStats?.active ?? 0}
           icon={<AlertTriangle className="h-5 w-5" />}
           color="danger"
         />
         <KpiCard
-          title="Data Points (24h)"
-          value={128473}
-          change={22.1}
-          changeLabel="vs yesterday"
+          title="Devices Online"
+          value={totalForBars > 0 ? Math.round((onlineDevices / totalForBars) * 100) : 0}
           icon={<Database className="h-5 w-5" />}
           color="accent"
         />
       </div>
 
-      {/* ROW 2: Telemetry chart + Device status overview
-          The chart takes 2/3 of the width, the status bars take 1/3. */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Real-time telemetry chart: shows temperature and humidity over the last 24 hours.
-            deviceId="all" means it aggregates data from all devices, not just one.
-            The chart component handles WebSocket connections internally for live updates. */}
         <div className="xl:col-span-2">
           <TelemetryChart
             title="Real-Time Telemetry (Last 24h)"
@@ -128,8 +120,6 @@ export default function DashboardPage() {
           />
         </div>
 
-        {/* Device Status Overview: horizontal progress bars showing online/offline/maintenance counts.
-            This is a simpler alternative to a pie chart -- easier to read at a glance. */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -138,60 +128,60 @@ export default function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {pieData.map((item) => {
-                // Calculate the total of all device counts and the percentage for this status
-                const total = pieData.reduce((acc, cur) => acc + cur.value, 0);
-                const percentage = ((item.value / total) * 100).toFixed(1);
-                return (
-                  <div key={item.name} className="space-y-2">
-                    {/* Status label row: colored dot + name on left, count + percentage on right */}
-                    <div className="flex items-center justify-between text-sm">
-                      <div className="flex items-center gap-2">
+            {loading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary-500 border-t-transparent" />
+              </div>
+            ) : totalForBars === 0 ? (
+              <p className="py-8 text-center text-sm text-dark-400">
+                No devices registered yet
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {pieData.map((item) => {
+                  const percentage = ((item.value / totalForBars) * 100).toFixed(1);
+                  return (
+                    <div key={item.name} className="space-y-2">
+                      <div className="flex items-center justify-between text-sm">
+                        <div className="flex items-center gap-2">
+                          <div
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: item.color }}
+                          />
+                          <span className="font-medium text-dark-700 dark:text-dark-300">
+                            {item.name}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="font-semibold text-dark-900 dark:text-dark-100">
+                            {item.value}
+                          </span>
+                          <span className="text-dark-400">({percentage}%)</span>
+                        </div>
+                      </div>
+                      <div className="h-2 w-full overflow-hidden rounded-full bg-dark-100 dark:bg-dark-800">
                         <div
-                          className="h-3 w-3 rounded-full"
-                          style={{ backgroundColor: item.color }}
+                          className="h-full rounded-full transition-all duration-500"
+                          style={{
+                            width: `${percentage}%`,
+                            backgroundColor: item.color,
+                          }}
                         />
-                        <span className="font-medium text-dark-700 dark:text-dark-300">
-                          {item.name}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-semibold text-dark-900 dark:text-dark-100">
-                          {item.value}
-                        </span>
-                        <span className="text-dark-400">({percentage}%)</span>
                       </div>
                     </div>
-                    {/* Progress bar: width is set to the calculated percentage.
-                        transition-all duration-500 makes the bar animate smoothly. */}
-                    <div className="h-2 w-full overflow-hidden rounded-full bg-dark-100 dark:bg-dark-800">
-                      <div
-                        className="h-full rounded-full transition-all duration-500"
-                        style={{
-                          width: `${percentage}%`,
-                          backgroundColor: item.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
 
-      {/* ROW 3: Recent alerts + Quick action shortcuts */}
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-3">
-        {/* Recent alerts list: shows the 5 most recent alerts with a "View All" link */}
         <div className="xl:col-span-2">
           <AlertList limit={5} showViewAll />
         </div>
 
-        {/* Quick Actions: shortcut buttons to common tasks.
-            These are simple <a> links styled as cards with hover effects.
-            Each has a different color accent matching its function. */}
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>

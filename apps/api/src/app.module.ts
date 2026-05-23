@@ -33,6 +33,9 @@ import { APP_GUARD } from '@nestjs/core';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { QueueModule } from './common/queue/queue.module';
+import { MetricsModule } from './common/metrics/metrics.module';
+import { UsageModule } from './common/usage/usage.module';
+import { PdfModule } from './common/pdf/pdf.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { DeviceModule } from './modules/device/device.module';
@@ -44,14 +47,44 @@ import { NotificationModule } from './modules/notification/notification.module';
 import { HealthModule } from './modules/health/health.module';
 import { AuditModule } from './modules/audit/audit.module';
 
+const PLACEHOLDER_SECRETS = [
+  'local-dev-access-secret-change-in-production',
+  'local-dev-refresh-secret-change-in-production',
+  'sk_test_placeholder',
+];
+
+function validateConfig() {
+  const required = ['DATABASE_URL', 'JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'];
+  const missing = required.filter((key) => !process.env[key]);
+  if (missing.length > 0) {
+    throw new Error(`Missing required environment variables: ${missing.join(', ')}`);
+  }
+
+  const isProd = process.env.NODE_ENV === 'production';
+  if (isProd) {
+    const placeholders = PLACEHOLDER_SECRETS.filter(
+      (p) =>
+        process.env.JWT_ACCESS_SECRET === p ||
+        process.env.JWT_REFRESH_SECRET === p,
+    );
+    if (placeholders.length > 0) {
+      throw new Error('JWT secrets must be changed from placeholder values in production');
+    }
+    if (process.env.CORS_ORIGIN === '*') {
+      console.warn('WARNING: CORS_ORIGIN is set to "*" in production. Restrict to your frontend domain.');
+    }
+  }
+}
+
 @Module({
   imports: [
-    // ConfigModule reads environment variables from .env files.
-    // isGlobal: true means every module can use ConfigService without importing ConfigModule again.
-    // envFilePath checks both the local .env and the monorepo root .env.
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: ['.env', '../../.env'],
+      validate: () => {
+        validateConfig();
+        return process.env;
+      },
     }),
 
     // ThrottlerModule protects the API from being overwhelmed by too many requests.
@@ -65,11 +98,12 @@ import { AuditModule } from './modules/audit/audit.module';
     ]),
 
     // ── Infrastructure Modules ──
-    // These provide the foundational services (database, cache, job queue)
-    // that the feature modules depend on.
-    PrismaModule,    // PostgreSQL database access via Prisma ORM
-    RedisModule,     // In-memory cache and pub/sub via Redis
-    QueueModule,     // Background job processing (BullMQ)
+    PrismaModule,
+    RedisModule,
+    QueueModule,
+    MetricsModule,   // Prometheus metrics at /metrics
+    UsageModule,     // Usage tracking (telemetry count, AI queries)
+    PdfModule,       // Invoice PDF generation (Puppeteer)
 
     // ── Feature Modules ──
     // Each module encapsulates a specific business domain.

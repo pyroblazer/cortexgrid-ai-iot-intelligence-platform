@@ -3,8 +3,11 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 const mockPathname = jest.fn(() => '/dashboard');
+const mockPush = jest.fn();
+
 jest.mock('next/navigation', () => ({
   usePathname: () => mockPathname(),
+  useRouter: () => ({ push: mockPush }),
 }));
 
 jest.mock('next/link', () => ({
@@ -14,6 +17,10 @@ jest.mock('next/link', () => ({
       {children}
     </a>
   ),
+}));
+
+jest.mock('@/stores/auth-store', () => ({
+  useAuthStore: jest.fn(),
 }));
 
 jest.mock('@cortexgrid/ui', () => ({
@@ -33,6 +40,10 @@ jest.mock('lucide-react', () => ({
 }));
 
 import { Sidebar } from '@/components/layout/sidebar';
+import { useAuthStore } from '@/stores/auth-store';
+
+const mockLogout = jest.fn();
+const mockUseAuthStore = useAuthStore as jest.Mock;
 
 describe('Sidebar', () => {
   const defaultProps = {
@@ -43,6 +54,24 @@ describe('Sidebar', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockPathname.mockReturnValue('/dashboard');
+    // Default auth store mock with user having org membership
+    mockUseAuthStore.mockImplementation((selector: any) => {
+      const state = {
+        user: {
+          memberships: [
+            {
+              organization: {
+                name: 'My Organization',
+                plan: 'FREE',
+              },
+            },
+          ],
+        },
+        logout: mockLogout,
+        selectedOrganizationId: 'org-1',
+      };
+      return selector(state);
+    });
   });
 
   it('renders all nav items when expanded', () => {
@@ -133,6 +162,13 @@ describe('Sidebar', () => {
   it('shows logout button', () => {
     render(<Sidebar {...defaultProps} />);
     expect(screen.getByText('Logout')).toBeInTheDocument();
+  });
+
+  it('calls logout and navigates to /login when logout is clicked', () => {
+    render(<Sidebar {...defaultProps} />);
+    fireEvent.click(screen.getByText('Logout'));
+    expect(mockLogout).toHaveBeenCalled();
+    expect(mockPush).toHaveBeenCalledWith('/login');
   });
 
   it('renders the navigation role', () => {

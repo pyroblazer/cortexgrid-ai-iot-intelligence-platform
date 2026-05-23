@@ -143,18 +143,18 @@ describe('auth store register', () => {
     mockedPost.mockResolvedValueOnce(undefined);
 
     await useAuthStore.getState().register(
-      'Test User',
+      'Test',
+      'User',
       'test@example.com',
-      'password123',
       'password123',
       'My Org'
     );
 
     expect(mockedPost).toHaveBeenCalledWith('/auth/register', {
-      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
       email: 'test@example.com',
       password: 'password123',
-      confirmPassword: 'password123',
       organizationName: 'My Org',
     });
 
@@ -169,7 +169,7 @@ describe('auth store register', () => {
     mockedPost.mockReturnValueOnce(pendingPromise as any);
 
     const registerPromise = useAuthStore.getState().register(
-      'name', 'email', 'pass', 'pass'
+      'first', 'last', 'email', 'pass', 'org'
     );
 
     expect(useAuthStore.getState().isLoading).toBe(true);
@@ -185,7 +185,7 @@ describe('auth store register', () => {
     mockedPost.mockRejectedValueOnce(error);
 
     await expect(
-      useAuthStore.getState().register('name', 'email', 'pass', 'pass')
+      useAuthStore.getState().register('first', 'last', 'email', 'pass', 'org')
     ).rejects.toThrow('Email already exists');
 
     expect(useAuthStore.getState().isLoading).toBe(false);

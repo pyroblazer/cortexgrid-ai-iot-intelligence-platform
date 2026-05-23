@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 // ─── Enums ──────────────────────────────────────────────────────────────────
@@ -88,6 +89,7 @@ model User {
   alerts         Alert[]        @relation("AcknowledgedAlerts")
   notifications  Notification[]
   invitations    Invitation[]
+  notificationPreference NotificationPreference?
 }
 
 model Organization {
@@ -128,6 +130,7 @@ model Membership {
   organization Organization @relation(fields: [organizationId], references: [id])
 
   @@unique([userId, organizationId])
+  @@index([organizationId, isActive])
 }
 
 model Invitation {
@@ -143,6 +146,8 @@ model Invitation {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   inviter      User         @relation(fields: [invitedBy], references: [id])
+
+  @@index([organizationId, status])
 }
 
 model Device {
@@ -220,6 +225,8 @@ model AlertRule {
 
   organization Organization @relation(fields: [organizationId], references: [id])
   alerts       Alert[]
+
+  @@index([organizationId, isActive])
 }
 
 model UsageRecord {
@@ -250,6 +257,9 @@ model Notification {
   createdAt      DateTime         @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, organizationId])
+  @@index([userId, isRead])
 }
 
 model AuditLog {
@@ -266,4 +276,22 @@ model AuditLog {
 
   @@index([organizationId, createdAt(sort: Desc)])
   @@index([userId, createdAt(sort: Desc)])
+}
+
+model NotificationPreference {
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  email         Boolean  @default(true)
+  push          Boolean  @default(true)
+  alertCritical Boolean  @default(true)
+  alertWarning  Boolean  @default(true)
+  alertInfo     Boolean  @default(true)
+  billing       Boolean  @default(true)
+  system        Boolean  @default(true)
+  deviceOffline Boolean  @default(true)
+  weeklyReport  Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }

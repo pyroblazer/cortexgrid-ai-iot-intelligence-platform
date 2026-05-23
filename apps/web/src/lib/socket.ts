@@ -43,9 +43,9 @@ import { io, Socket } from "socket.io-client";
 // The WebSocket server URL. Falls back through several options:
 // 1. NEXT_PUBLIC_SOCKET_URL (explicit WebSocket URL)
 // 2. NEXT_PUBLIC_API_URL (same server as the REST API)
-// 3. "http://localhost:4000" (development default)
+// 3. "http://localhost:3001" (development default)
 const SOCKET_URL =
-  process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  process.env.NEXT_PUBLIC_SOCKET_URL || process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
 
 // Module-scoped singleton: only one socket instance exists for the entire app.
 // This prevents duplicate connections and ensures all subscribers share the same socket.
@@ -73,12 +73,13 @@ function getAccessToken(): string | null {
 export function getSocket(): Socket {
   if (!socket) {
     socket = io(SOCKET_URL, {
-      autoConnect: false,        // Don't connect immediately -- wait for connectSocket()
-      reconnection: true,         // Automatically try to reconnect if the connection drops
-      reconnectionAttempts: 10,   // Give up after 10 failed attempts
-      reconnectionDelay: 1000,    // Start with 1 second between attempts
-      reconnectionDelayMax: 10000, // Cap the delay at 10 seconds (exponential backoff)
-      transports: ["websocket", "polling"], // Try WebSocket first, fall back to HTTP polling
+      autoConnect: false,
+      reconnection: true,
+      reconnectionAttempts: 20,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 30000,
+      timeout: 45000,
+      transports: ["websocket", "polling"],
       // auth function is called every time the socket connects (including reconnections).
       // This ensures the latest token is always used, even if it was refreshed.
       auth: () => {
@@ -158,10 +159,10 @@ export function subscribeToRoom(room: string, callback: (data: unknown) => void)
 /**
  * subscribeToTelemetry - Listens for real-time telemetry data from a specific device.
  *
- * This is the primary way components receive live sensor data.
- * The server emits events like "telemetry:dev-001" whenever device dev-001 sends new data.
+ * Joins the device-specific room and listens for the 'telemetry:update' event
+ * that the gateway emits to that room.
  *
- * @param deviceId - The ID of the device to listen to (e.g., "dev-001")
+ * @param deviceId - The ID of the device to listen to
  * @param callback - Function to call with the telemetry data when it arrives
  * @returns An unsubscribe function -- call it to stop listening
  */
@@ -170,13 +171,13 @@ export function subscribeToTelemetry(
   callback: (data: unknown) => void
 ): () => void {
   const s = getSocket();
-  // The event name follows the pattern "telemetry:{deviceId}".
-  // The server broadcasts this event whenever new data arrives from that device.
-  const event = `telemetry:${deviceId}`;
-  s.on(event, callback);
+  // Join the device-specific room on the server so we receive per-device events
+  s.emit('subscribe:device', deviceId);
+  // The gateway emits 'telemetry:update' to the device room
+  s.on('telemetry:update', callback);
 
-  // Return cleanup function for React's useEffect
   return () => {
-    s.off(event, callback);
+    s.off('telemetry:update', callback);
+    s.emit('unsubscribe:device', deviceId);
   };
 }

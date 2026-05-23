@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   LayoutDashboard,
   Cpu,
@@ -14,6 +14,27 @@ import {
   LogOut,
 } from "lucide-react";
 import { cn } from "@cortexgrid/ui";
+import { useAuthStore } from "@/stores/auth-store";
+
+function SidebarOrgInfo() {
+  const user = useAuthStore((s) => s.user);
+  const org = (user as any)?.memberships?.[0]?.organization;
+  const orgName = org?.name ?? "My Organization";
+  const plan = org?.plan ?? "FREE";
+
+  return (
+    <div className="border-t border-dark-200 px-4 py-3 dark:border-dark-700">
+      <div className="rounded-lg bg-dark-50 px-3 py-2 dark:bg-dark-800">
+        <p className="truncate text-xs font-medium text-dark-700 dark:text-dark-300">
+          {orgName}
+        </p>
+        <p className="truncate text-[11px] text-dark-400 dark:text-dark-500">
+          {plan === "FREE" ? "Free Plan" : plan === "PRO" ? "Pro Plan" : "Enterprise Plan"}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 interface SidebarProps {
   collapsed: boolean;
@@ -55,6 +76,9 @@ const NAV_ITEMS = [
 
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const pathname = usePathname();
+  const router = useRouter();
+  const logout = useAuthStore((s) => s.logout);
+  useAuthStore((s) => s.selectedOrganizationId);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -139,16 +163,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       </nav>
 
       {!collapsed && (
-        <div className="border-t border-dark-200 px-4 py-3 dark:border-dark-700">
-          <div className="rounded-lg bg-dark-50 px-3 py-2 dark:bg-dark-800">
-            <p className="truncate text-xs font-medium text-dark-700 dark:text-dark-300">
-              My Organization
-            </p>
-            <p className="truncate text-[11px] text-dark-400 dark:text-dark-500">
-              Free Plan
-            </p>
-          </div>
-        </div>
+        <SidebarOrgInfo />
       )}
 
       <div
@@ -158,6 +173,10 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         )}
       >
         <button
+          onClick={() => {
+            logout();
+            router.push("/login");
+          }}
           className={cn(
             "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-dark-500 transition-colors hover:bg-danger-50 hover:text-danger-600 dark:hover:bg-danger-900/20 dark:hover:text-danger-400",
             collapsed && "px-0"

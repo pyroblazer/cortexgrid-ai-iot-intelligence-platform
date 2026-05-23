@@ -74,8 +74,32 @@ export class NotificationService {
       return { success: true, data: JSON.parse(cached) };
     }
 
+    // Check DB for persisted preferences
+    const dbPrefs = await this.prisma.notificationPreference.findUnique({
+      where: { userId },
+    });
+    if (dbPrefs) {
+      const preferences = {
+        email: dbPrefs.email,
+        push: dbPrefs.push,
+        alertCritical: dbPrefs.alertCritical,
+        alertWarning: dbPrefs.alertWarning,
+        alertInfo: dbPrefs.alertInfo,
+        billing: dbPrefs.billing,
+        system: dbPrefs.system,
+        deviceOffline: dbPrefs.deviceOffline,
+        weeklyReport: dbPrefs.weeklyReport,
+      };
+      // Populate Redis cache from DB
+      await this.redisService.set(
+        `notification_prefs:${userId}`,
+        JSON.stringify(preferences),
+        30 * 24 * 60 * 60,
+      );
+      return { success: true, data: preferences };
+    }
+
     // Return default preferences if none stored
-    // In a full implementation this would query a NotificationPreference table
     const defaultPreferences = {
       email: true,
       push: true,
@@ -85,7 +109,6 @@ export class NotificationService {
       billing: true,
       system: true,
       deviceOffline: true,
-      deviceOnline: false,
       weeklyReport: true,
     };
 
@@ -102,9 +125,15 @@ export class NotificationService {
       billing: dto.preferences?.billing ?? true,
       system: dto.preferences?.system ?? true,
       deviceOffline: dto.preferences?.deviceOffline ?? true,
-      deviceOnline: dto.preferences?.deviceOnline ?? false,
       weeklyReport: dto.preferences?.weeklyReport ?? true,
     };
+
+    // Persist to database
+    await this.prisma.notificationPreference.upsert({
+      where: { userId },
+      create: { userId, ...preferences },
+      update: preferences,
+    });
 
     // Cache preferences in Redis (30 day TTL)
     await this.redisService.set(

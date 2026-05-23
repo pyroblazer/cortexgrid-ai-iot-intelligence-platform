@@ -18,6 +18,10 @@ describe('NotificationService', () => {
       findUnique: jest.fn(),
       delete: jest.fn(),
     },
+    notificationPreference: {
+      findUnique: jest.fn(),
+      upsert: jest.fn(),
+    },
   };
 
   const mockRedisService = {
@@ -142,8 +146,9 @@ describe('NotificationService', () => {
   });
 
   describe('getPreferences', () => {
-    it('should return defaults when no cached preferences', async () => {
+    it('should return defaults when no cached or DB preferences', async () => {
       redisService.get.mockResolvedValue(null);
+      prisma.notificationPreference.findUnique.mockResolvedValue(null);
 
       const result = await service.getPreferences('user_001');
 
@@ -157,12 +162,11 @@ describe('NotificationService', () => {
         billing: true,
         system: true,
         deviceOffline: true,
-        deviceOnline: false,
         weeklyReport: true,
       });
     });
 
-    it('should return cached preferences', async () => {
+    it('should return cached preferences from Redis', async () => {
       const cachedPrefs = JSON.stringify({
         email: false,
         push: true,
@@ -174,11 +178,41 @@ describe('NotificationService', () => {
 
       expect(result.success).toBe(true);
       expect(result.data.email).toBe(false);
+      // Should NOT query DB when Redis cache exists
+      expect(prisma.notificationPreference.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('should fall back to DB when Redis misses', async () => {
+      redisService.get.mockResolvedValue(null);
+      prisma.notificationPreference.findUnique.mockResolvedValue({
+        userId: 'user_001',
+        email: false,
+        push: true,
+        alertCritical: true,
+        alertWarning: false,
+        alertInfo: true,
+        billing: true,
+        system: false,
+        deviceOffline: true,
+        weeklyReport: false,
+      });
+
+      const result = await service.getPreferences('user_001');
+
+      expect(result.success).toBe(true);
+      expect(result.data.email).toBe(false);
+      expect(result.data.weeklyReport).toBe(false);
+      // Should cache DB values in Redis
+      expect(redisService.set).toHaveBeenCalledWith(
+        'notification_prefs:user_001',
+        expect.any(String),
+        30 * 24 * 60 * 60,
+      );
     });
   });
 
   describe('updatePreferences', () => {
-    it('should merge and cache', async () => {
+    it('should upsert to DB and cache in Redis', async () => {
       const dto = {
         preferences: {
           email: false,
@@ -186,14 +220,22 @@ describe('NotificationService', () => {
         },
       };
 
+      prisma.notificationPreference.upsert.mockResolvedValue({ userId: 'user_001' });
+
       const result = await service.updatePreferences('user_001', dto as any);
 
       expect(result.success).toBe(true);
       expect(result.data.email).toBe(false);
       expect(result.data.push).toBe(false);
-      // Defaults should be applied for unspecified fields
       expect(result.data.alertCritical).toBe(true);
       expect(result.data.system).toBe(true);
+      // Should persist to DB
+      expect(prisma.notificationPreference.upsert).toHaveBeenCalledWith({
+        where: { userId: 'user_001' },
+        create: expect.objectContaining({ userId: 'user_001', email: false, push: false }),
+        update: expect.objectContaining({ email: false, push: false }),
+      });
+      // Should cache in Redis
       expect(redisService.set).toHaveBeenCalledWith(
         'notification_prefs:user_001',
         expect.any(String),
@@ -203,12 +245,12 @@ describe('NotificationService', () => {
 
     it('should use default values when preferences object is not provided', async () => {
       const dto = {};
+      prisma.notificationPreference.upsert.mockResolvedValue({ userId: 'user_001' });
 
       const result = await service.updatePreferences('user_001', dto as any);
 
       expect(result.data.email).toBe(true);
       expect(result.data.weeklyReport).toBe(true);
-      expect(result.data.deviceOnline).toBe(false);
     });
   });
 
@@ -249,7 +291,6 @@ describe('NotificationService', () => {
         expect.any(String),
       );
 
-      // Verify published payload
       const publishCall = redisService.publish.mock.calls[0];
       expect(publishCall[0]).toBe('notifications:user_001');
       const payload = JSON.parse(publishCall[1]);

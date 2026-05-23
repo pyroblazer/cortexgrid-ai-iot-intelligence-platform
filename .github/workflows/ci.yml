@@ -399,9 +399,9 @@ jobs:
           path: newman-report.html
           retention-days: 7
 
-  # ─── E2E Tests (Playwright) ────────────────────────────────────────────
-  e2e-tests:
-    name: E2E Tests (Playwright)
+  # ─── E2E Tests (Playwright) — Sharded for parallel execution ───────────
+  e2e-shard-1:
+    name: E2E Shard 1/3
     needs: setup
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -526,18 +526,304 @@ jobs:
       - name: Install Playwright browsers
         run: cd apps/web && npx playwright install --with-deps chromium
 
-      - name: Run Playwright tests
-        run: pnpm --filter @cortexgrid/web test:e2e
+      - name: Run Playwright tests (shard 1/3)
+        run: cd apps/web && npx playwright test --shard=1/3
         env:
           BASE_URL: http://localhost:3000
           NEXT_PUBLIC_API_URL: http://localhost:3001
           CI: true
 
-      - name: Upload Playwright report
+      - name: Upload Playwright report (shard 1)
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report
+          name: playwright-report-shard-1
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+
+  e2e-shard-2:
+    name: E2E Shard 2/3
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cortexgrid
+          POSTGRES_PASSWORD: cortexgrid
+          POSTGRES_DB: cortexgrid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      CORS_ORIGIN: "*"
+      PORT: 3001
+      MQTT_BROKER_URL: mqtt://localhost:1883
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Build API
+        run: pnpm --filter @cortexgrid/api build
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
+
+      - name: Start API server
+        run: |
+          cd apps/api && node dist/main.js > /tmp/api-server.log 2>&1 &
+          API_PID=$!
+          echo "API server PID: $API_PID"
+          echo "Waiting for API server to start..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "API server is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "API server failed to start after 60s. Logs:"
+              cat /tmp/api-server.log
+              exit 1
+            fi
+            echo "Attempt $i: API not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Verify API is healthy
+        run: curl -sf http://localhost:3001/health || { echo "Server logs:"; cat /tmp/api-server.log; exit 1; }
+
+      - name: Start Web server
+        run: |
+          cd apps/web && pnpm dev > /tmp/web-server.log 2>&1 &
+          echo "Waiting for Web server to start..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Web server is ready"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Web server failed to start. Logs:"
+              cat /tmp/web-server.log
+              exit 1
+            fi
+            echo "Attempt $i: Web not ready, waiting..."
+            sleep 3
+          done
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Install Playwright browsers
+        run: cd apps/web && npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests (shard 2/3)
+        run: cd apps/web && npx playwright test --shard=2/3
+        env:
+          BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          CI: true
+
+      - name: Upload Playwright report (shard 2)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-shard-2
+          path: |
+            apps/web/playwright-report/
+            apps/web/test-results/
+          retention-days: 7
+
+  e2e-shard-3:
+    name: E2E Shard 3/3
+    needs: setup
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: cortexgrid
+          POSTGRES_PASSWORD: cortexgrid
+          POSTGRES_DB: cortexgrid_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      DATABASE_URL: postgresql://cortexgrid:cortexgrid@localhost:5432/cortexgrid_test?schema=public
+      REDIS_HOST: localhost
+      REDIS_PORT: 6379
+      JWT_ACCESS_SECRET: test-access-secret
+      JWT_REFRESH_SECRET: test-refresh-secret
+      CORS_ORIGIN: "*"
+      PORT: 3001
+      MQTT_BROKER_URL: mqtt://localhost:1883
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: Restore cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            **/node_modules
+            .turbo
+          key: ${{ runner.os }}-node-modules-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-node-modules-
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Generate Prisma client
+        run: pnpm --filter @cortexgrid/api db:generate
+
+      - name: Build API
+        run: pnpm --filter @cortexgrid/api build
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
+
+      - name: Start API server
+        run: |
+          cd apps/api && node dist/main.js > /tmp/api-server.log 2>&1 &
+          API_PID=$!
+          echo "API server PID: $API_PID"
+          echo "Waiting for API server to start..."
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health > /dev/null 2>&1; then
+              echo "API server is ready"
+              break
+            fi
+            if [ "$i" -eq 30 ]; then
+              echo "API server failed to start after 60s. Logs:"
+              cat /tmp/api-server.log
+              exit 1
+            fi
+            echo "Attempt $i: API not ready, waiting..."
+            sleep 2
+          done
+
+      - name: Verify API is healthy
+        run: curl -sf http://localhost:3001/health || { echo "Server logs:"; cat /tmp/api-server.log; exit 1; }
+
+      - name: Start Web server
+        run: |
+          cd apps/web && pnpm dev > /tmp/web-server.log 2>&1 &
+          echo "Waiting for Web server to start..."
+          for i in $(seq 1 60); do
+            if curl -sf http://localhost:3000 > /dev/null 2>&1; then
+              echo "Web server is ready"
+              break
+            fi
+            if [ "$i" -eq 60 ]; then
+              echo "Web server failed to start. Logs:"
+              cat /tmp/web-server.log
+              exit 1
+            fi
+            echo "Attempt $i: Web not ready, waiting..."
+            sleep 3
+          done
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+
+      - name: Install Playwright browsers
+        run: cd apps/web && npx playwright install --with-deps chromium
+
+      - name: Run Playwright tests (shard 3/3)
+        run: cd apps/web && npx playwright test --shard=3/3
+        env:
+          BASE_URL: http://localhost:3000
+          NEXT_PUBLIC_API_URL: http://localhost:3001
+          CI: true
+
+      - name: Upload Playwright report (shard 3)
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-shard-3
           path: |
             apps/web/playwright-report/
             apps/web/test-results/
@@ -655,7 +941,7 @@ jobs:
   # ─── Deploy to Production ──────────────────────────────────────────────
   deploy:
     name: Deploy to Production
-    needs: [lint, type-check, unit-tests, integration-tests, api-tests, e2e-tests, build]
+    needs: [lint, type-check, unit-tests, integration-tests, api-tests, e2e-shard-1, e2e-shard-2, e2e-shard-3, build]
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     environment: production

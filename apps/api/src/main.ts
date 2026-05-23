@@ -66,7 +66,7 @@ async function bootstrap() {
   // Example: /auth/login becomes /api/v1/auth/login
   // The 'health' endpoint is excluded so it stays at the root for load balancers.
   app.setGlobalPrefix('api/v1', {
-    exclude: ['health'],
+    exclude: ['health', 'metrics'],
   });
 
   // Global validation pipe - automatically validates ALL incoming request bodies
