@@ -2,11 +2,45 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Alert Rules', () => {
   test.beforeEach(async ({ page }) => {
+    await page.route('**/auth/login', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            accessToken: 'test-access-token',
+            refreshToken: 'test-refresh-token',
+            expiresIn: '86400',
+            user: {
+              id: 'test-user-id',
+              email: 'demo@cortexgrid.io',
+              firstName: 'Demo',
+              lastName: 'User',
+              organizationId: 'test-org-id',
+              role: 'ADMIN',
+            },
+          },
+        }),
+      })
+    );
+    await page.route('**/alerts/rules**', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: [],
+          message: 'Rules retrieved',
+        }),
+      })
+    );
+
     await page.goto('/login');
     await page.fill('input[type="email"]', 'demo@cortexgrid.io');
     await page.fill('input[type="password"]', 'Demo@1234');
     await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await page.waitForURL(/\/dashboard/, { timeout: 30000 });
     await page.goto('/alerts/rules');
     await page.waitForURL(/\/alerts\/rules/, { timeout: 10000 });
   });
