@@ -2,28 +2,6 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Alerts', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/auth/login', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: {
-            accessToken: 'test-access-token',
-            refreshToken: 'test-refresh-token',
-            expiresIn: '86400',
-            user: {
-              id: 'test-user-id',
-              email: 'demo@cortexgrid.io',
-              firstName: 'Demo',
-              lastName: 'User',
-              organizationId: 'test-org-id',
-              role: 'ADMIN',
-            },
-          },
-        }),
-      })
-    );
     await page.route('**/api/v1/alerts', (route) =>
       route.fulfill({
         status: 200,
@@ -35,12 +13,6 @@ test.describe('Alerts', () => {
         }),
       })
     );
-
-    await page.goto('/login');
-    await page.fill('input[type="email"]', 'demo@cortexgrid.io');
-    await page.fill('input[type="password"]', 'Demo@1234');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/, { timeout: 30000 });
     await page.goto('/alerts');
     await page.waitForURL(/\/alerts/, { timeout: 10000 });
   });
@@ -50,12 +22,14 @@ test.describe('Alerts', () => {
   });
 
   test('should render alert table or empty state', async ({ page }) => {
-    // Either a table with alerts or an empty state message
+    // Either a table with alerts or an empty state indicator
     const table = page.locator('table');
-    const emptyMessage = page.locator('text=/no alerts|empty/i');
+    const activeCount = page.locator('text=Active: 0');
+    const emptyMessage = page.locator('text=No alerts match your filters');
     const hasTable = await table.isVisible().catch(() => false);
-    const hasEmpty = await emptyMessage.isVisible().catch(() => false);
-    expect(hasTable || hasEmpty).toBeTruthy();
+    const hasActiveCount = await activeCount.isVisible().catch(() => false);
+    const hasEmptyMessage = await emptyMessage.isVisible().catch(() => false);
+    expect(hasTable || hasActiveCount || hasEmptyMessage).toBeTruthy();
   });
 
   test('should display severity filter dropdown', async ({ page }) => {

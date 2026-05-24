@@ -1,9 +1,12 @@
 import { test, expect } from '@playwright/test';
 
+test.use({ storageState: undefined });
+
 test.describe('Reset Password', () => {
   test('should show error state without token', async ({ page }) => {
     await page.goto('/reset-password');
-    await expect(page.locator('text=/invalid|expired/i')).toBeVisible({ timeout: 5000 });
+    // Check for the specific error heading with text
+    await expect(page.getByRole('heading', { name: 'Invalid reset link' })).toBeVisible({ timeout: 5000 });
     // Should have link to request new reset link
     await expect(page.locator('a[href="/forgot-password"]')).toBeVisible();
   });
@@ -20,7 +23,8 @@ test.describe('Reset Password', () => {
     await passwordInputs.nth(0).fill('short');
     await passwordInputs.nth(1).fill('short');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/at least 8|must be|characters/i').first()).toBeVisible({ timeout: 5000 });
+    // Look for specific validation error message
+    await expect(page.locator('text="Password must be at least 8 characters"')).toBeVisible({ timeout: 5000 });
   });
 
   test('should show error for mismatched passwords', async ({ page }) => {
@@ -29,7 +33,8 @@ test.describe('Reset Password', () => {
     await passwordInputs.nth(0).fill('NewPass123');
     await passwordInputs.nth(1).fill('DifferentPass456');
     await page.click('button[type="submit"]');
-    await expect(page.locator('text=/do not match|match/i').first()).toBeVisible({ timeout: 5000 });
+    // Look for specific mismatch error
+    await expect(page.locator('text="Passwords do not match"')).toBeVisible({ timeout: 5000 });
   });
 
   test('should have link back to login', async ({ page }) => {

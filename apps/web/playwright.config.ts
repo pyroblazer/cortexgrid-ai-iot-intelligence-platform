@@ -7,8 +7,10 @@ export default defineConfig({
   retries: process.env.CI ? 2 : 0,
   workers: process.env.CI ? 4 : undefined,
   reporter: process.env.CI ? 'github' : 'html',
+  globalSetup: require.resolve('./tests/global-setup'),
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:3000',
+    storageState: 'playwright/.auth/user.json',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },

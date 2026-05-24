@@ -56,3 +56,6 @@ pnpm-debug.log*
 # Test reports
 newman-report.html
 skills-lock.json
+
+# Playwright auth state
+playwright/.auth

@@ -2,11 +2,13 @@ import { test, expect } from '@playwright/test';
 
 test.describe('AI Assistant', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"]', 'demo@cortexgrid.io');
-    await page.fill('input[type="password"]', 'Demo@1234');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await page.route('**/api/v1/ai', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { suggestions: ['What is the average temperature?', 'Detect anomalies'], history: [] } }),
+      })
+    );
     await page.goto('/ai');
     await page.waitForURL(/\/ai/, { timeout: 10000 });
   });
