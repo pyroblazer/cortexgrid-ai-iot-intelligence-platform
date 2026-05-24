@@ -6,14 +6,11 @@ describe('EmailService', () => {
   let service: EmailService;
   let configService: any;
 
-  const createMockConfigService = (smtpHost?: string, smtpPort?: string, smtpUser?: string, smtpPass?: string, smtpFrom?: string) => ({
+  const createMockConfigService = (resendApiKey?: string, emailFrom?: string) => ({
     get: jest.fn((key: string) => {
       const map: Record<string, string | undefined> = {
-        SMTP_HOST: smtpHost,
-        SMTP_PORT: smtpPort,
-        SMTP_USER: smtpUser,
-        SMTP_PASSWORD: smtpPass,
-        SMTP_FROM: smtpFrom,
+        RESEND_API_KEY: resendApiKey,
+        EMAIL_FROM: emailFrom,
       };
       return map[key];
     }),
@@ -24,7 +21,7 @@ describe('EmailService', () => {
   });
 
   describe('isConfigured', () => {
-    it('should return false when SMTP_HOST is not set', async () => {
+    it('should return false when RESEND_API_KEY is not set', async () => {
       const mockConfig = createMockConfigService();
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -37,8 +34,8 @@ describe('EmailService', () => {
       expect(service.isConfigured()).toBe(false);
     });
 
-    it('should return true when SMTP_HOST is set', async () => {
-      const mockConfig = createMockConfigService('smtp.example.com', '587');
+    it('should return true when RESEND_API_KEY is set', async () => {
+      const mockConfig = createMockConfigService('re_test_key');
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           EmailService,
@@ -52,7 +49,7 @@ describe('EmailService', () => {
   });
 
   describe('send', () => {
-    it('should skip sending when SMTP is not configured', async () => {
+    it('should skip sending when RESEND_API_KEY is not configured', async () => {
       const mockConfig = createMockConfigService();
       const module: TestingModule = await Test.createTestingModule({
         providers: [
@@ -62,12 +59,11 @@ describe('EmailService', () => {
       }).compile();
 
       service = module.get<EmailService>(EmailService);
-      // Should not throw
       await service.send('test@example.com', 'Test Subject', '<p>Hello</p>');
     });
 
-    it('should use default from address when SMTP_FROM is not set', async () => {
-      const mockConfig = createMockConfigService('smtp.example.com', '587', 'user@example.com', 'pass123');
+    it('should use default from address when EMAIL_FROM is not set', async () => {
+      const mockConfig = createMockConfigService('re_test_key');
       const module: TestingModule = await Test.createTestingModule({
         providers: [
           EmailService,
@@ -76,24 +72,7 @@ describe('EmailService', () => {
       }).compile();
 
       service = module.get<EmailService>(EmailService);
-      // The service should be configured and ready to send
       expect(service.isConfigured()).toBe(true);
-    });
-  });
-
-  describe('onModuleDestroy', () => {
-    it('should handle destroy when no transporter exists', async () => {
-      const mockConfig = createMockConfigService();
-      const module: TestingModule = await Test.createTestingModule({
-        providers: [
-          EmailService,
-          { provide: ConfigService, useValue: mockConfig },
-        ],
-      }).compile();
-
-      service = module.get<EmailService>(EmailService);
-      // Should not throw
-      await service.onModuleDestroy();
     });
   });
 });

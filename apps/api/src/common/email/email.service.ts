@@ -1,100 +1,62 @@
-import { Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import nodemailer, { Transporter } from 'nodemailer';
+import { Resend } from 'resend';
 
 @Injectable()
-export class EmailService implements OnModuleDestroy {
+export class EmailService {
   private readonly logger = new Logger(EmailService.name);
-  private transporter: Transporter | null = null;
+  private resend: Resend | null = null;
+  private readonly fromAddress: string;
 
-  constructor(private readonly configService: ConfigService) {}
-
-  /**
-   * Returns true when SMTP_HOST is configured, indicating the service
-   * is ready to send emails. When false, calls to `send` will be skipped
-   * with a warning log (graceful degradation for local development).
-   */
-  isConfigured(): boolean {
-    return !!this.configService.get<string>('SMTP_HOST');
-  }
-
-  /**
-   * Lazily creates and returns the Nodemailer SMTP transporter.
-   * Reuses the same instance across subsequent calls.
-   */
-  private ensureTransporter(): Transporter {
-    if (!this.transporter) {
-      const host = this.configService.get<string>('SMTP_HOST');
-      const port = Number(this.configService.get<string>('SMTP_PORT')) || 587;
-      const user = this.configService.get<string>('SMTP_USER');
-      const pass = this.configService.get<string>('SMTP_PASSWORD');
-
-      this.transporter = nodemailer.createTransport({
-        host,
-        port,
-        secure: port === 465,
-        auth: user ? { user, pass } : undefined,
-      });
-
-      this.logger.log(`SMTP transporter created (host=${host}, port=${port})`);
+  constructor(private readonly configService: ConfigService) {
+    const apiKey = this.configService.get<string>('RESEND_API_KEY');
+    if (apiKey) {
+      this.resend = new Resend(apiKey);
+      this.logger.log('Resend email client initialized');
     }
-    return this.transporter;
+
+    this.fromAddress =
+      this.configService.get<string>('EMAIL_FROM') ||
+      'CortexGrid <onboarding@resend.dev>';
   }
 
-  /**
-   * Sends an HTML email. If SMTP is not configured, logs a warning and returns
-   * without throwing, allowing the application to function normally in development.
-   *
-   * @param to      Recipient email address
-   * @param subject Email subject line
-   * @param html    HTML body content
-   */
+  isConfigured(): boolean {
+    return !!this.resend;
+  }
+
   async send(to: string, subject: string, html: string): Promise<void> {
-    if (!this.isConfigured()) {
+    if (!this.resend) {
       this.logger.warn(
-        'SMTP not configured — skipping email send. ' +
-          'Set SMTP_HOST and related env vars to enable email delivery.',
+        'RESEND_API_KEY not configured — skipping email send. ' +
+          'Set RESEND_API_KEY to enable email delivery.',
       );
       return;
     }
 
-    const from =
-      this.configService.get<string>('SMTP_FROM') ||
-      this.configService.get<string>('SMTP_USER') ||
-      'noreply@cortexgrid.io';
-
     try {
-      const transporter = this.ensureTransporter();
-      const result = await transporter.sendMail({
-        from,
+      const { data, error } = await this.resend.emails.send({
+        from: this.fromAddress,
         to,
         subject,
         html,
       });
 
+      if (error) {
+        this.logger.error(
+          `Resend API error for "${to}" — ${error.message}`,
+        );
+        throw new Error(`Resend API error: ${error.message}`);
+      }
+
       this.logger.log(
-        `Email sent to "${to}" — subject="${subject}" — messageId=${result.messageId}`,
+        `Email sent to "${to}" — subject="${subject}" — id=${data?.id}`,
       );
-    } catch (error) {
+    } catch (err) {
       this.logger.error(
         `Failed to send email to "${to}" — subject="${subject}"`,
-        error instanceof Error ? error.stack : String(error),
+        err instanceof Error ? err.stack : String(err),
       );
-      throw error;
-    }
-  }
-
-  async onModuleDestroy() {
-    if (this.transporter) {
-      try {
-        this.transporter.close();
-        this.logger.log('SMTP transporter connection closed');
-      } catch (error) {
-        this.logger.error(
-          'Error closing SMTP transporter',
-          error instanceof Error ? error.stack : String(error),
-        );
-      }
+      throw err;
     }
   }
 }
