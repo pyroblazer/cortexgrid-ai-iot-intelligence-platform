@@ -10,9 +10,10 @@ import { TelemetryController } from './telemetry.controller';
 import { TelemetryService } from './telemetry.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+import { UsageModule } from '../../common/usage/usage.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule],
+  imports: [PrismaModule, RedisModule, UsageModule],
   controllers: [TelemetryController],
   providers: [TelemetryService],
   exports: [TelemetryService],

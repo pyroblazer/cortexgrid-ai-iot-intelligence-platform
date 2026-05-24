@@ -5,9 +5,10 @@ import { TelemetryGateway } from './telemetry.gateway';
 import { MqttService } from './mqtt/mqtt.service';
 import { PrismaModule } from '../../common/prisma/prisma.module';
 import { RedisModule } from '../../common/redis/redis.module';
+import { UsageModule } from '../../common/usage/usage.module';
 
 @Module({
-  imports: [PrismaModule, RedisModule],
+  imports: [PrismaModule, RedisModule, UsageModule],
   controllers: [TelemetryController],
   providers: [TelemetryService, TelemetryGateway, MqttService],
   exports: [TelemetryService, MqttService],

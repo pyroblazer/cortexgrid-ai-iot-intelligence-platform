@@ -3,6 +3,7 @@ import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
 import { TelemetryModule } from '../telemetry/telemetry.module';
 import { PrismaModule } from '../../common/prisma/prisma.module';
+import { UsageModule } from '../../common/usage/usage.module';
 import { ConfigService } from '@nestjs/config';
 import { LlmProvider } from './providers/llm-provider.interface';
 import { GroqProvider } from './providers/groq.provider';
@@ -40,7 +41,7 @@ const llmProviderFactory = {
 };
 
 @Module({
-  imports: [PrismaModule, TelemetryModule],
+  imports: [PrismaModule, TelemetryModule, UsageModule],
   controllers: [AiController],
   providers: [AiService, llmProviderFactory],
   exports: [AiService],
