@@ -2,46 +2,21 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Alert Rules', () => {
   test.beforeEach(async ({ page }) => {
-    await page.route('**/auth/login', (route) =>
+    await page.route(/\/api\/v1\/alerts\/rules/, (route) =>
       route.fulfill({
         status: 200,
         contentType: 'application/json',
         body: JSON.stringify({
           success: true,
           data: {
-            accessToken: 'test-access-token',
-            refreshToken: 'test-refresh-token',
-            expiresIn: '86400',
-            user: {
-              id: 'test-user-id',
-              email: 'demo@cortexgrid.io',
-              firstName: 'Demo',
-              lastName: 'User',
-              organizationId: 'test-org-id',
-              role: 'ADMIN',
-            },
+            data: [],
+            meta: { total: 0, page: 1, limit: 10 },
           },
         }),
       })
     );
-    await page.route('**/alerts/rules**', (route) =>
-      route.fulfill({
-        status: 200,
-        contentType: 'application/json',
-        body: JSON.stringify({
-          success: true,
-          data: [],
-          message: 'Rules retrieved',
-        }),
-      })
-    );
-
-    await page.goto('/login');
-    await page.fill('input[type="email"]', 'demo@cortexgrid.io');
-    await page.fill('input[type="password"]', 'Demo@1234');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/, { timeout: 30000 });
     await page.goto('/alerts/rules');
+    await page.waitForLoadState('networkidle');
     await page.waitForURL(/\/alerts\/rules/, { timeout: 10000 });
   });
 
@@ -50,6 +25,7 @@ test.describe('Alert Rules', () => {
   });
 
   test('should render rules table or empty state', async ({ page }) => {
+    await page.waitForTimeout(1000);
     const table = page.locator('table');
     const emptyMessage = page.locator('text=/no alert rules|no rules/i');
     const hasTable = await table.isVisible().catch(() => false);

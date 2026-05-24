@@ -2,11 +2,20 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Billing', () => {
   test.beforeEach(async ({ page }) => {
-    await page.goto('/login');
-    await page.fill('input[type="email"]', 'demo@cortexgrid.io');
-    await page.fill('input[type="password"]', 'Demo@1234');
-    await page.click('button[type="submit"]');
-    await page.waitForURL(/\/dashboard/, { timeout: 15000 });
+    await page.route('**/api/v1/billing', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: { plan: 'FREE', usage: {} } }),
+      })
+    );
+    await page.route('**/api/v1/subscriptions', (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: [] }),
+      })
+    );
     await page.goto('/billing');
     await page.waitForURL(/\/billing/, { timeout: 10000 });
   });
@@ -30,7 +39,7 @@ test.describe('Billing', () => {
   });
 
   test('should display usage information', async ({ page }) => {
-    const usageSection = page.locator('text=API Calls, text=Telemetry, text=Usage').first();
-    await expect(usageSection).toBeVisible({ timeout: 10000 });
+    // Page shows Devices, API Calls, AI Queries, Storage usage meters
+    await expect(page.locator('text=API Calls').first()).toBeVisible({ timeout: 10000 });
   });
 });

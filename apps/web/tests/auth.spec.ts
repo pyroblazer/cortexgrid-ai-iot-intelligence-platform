@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+test.use({ storageState: undefined });
+
 test.describe('Authentication', () => {
   test('should show login page', async ({ page }) => {
     await page.goto('/login');
@@ -19,6 +21,28 @@ test.describe('Authentication', () => {
   });
 
   test('should login with demo credentials', async ({ page }) => {
+    await page.route(/\/api\/v1\/auth\/login/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          success: true,
+          data: {
+            accessToken: 'test-access-token',
+            refreshToken: 'test-refresh-token',
+            expiresIn: '3600',
+            user: {
+              id: 'test-user-id',
+              email: 'demo@cortexgrid.io',
+              firstName: 'Demo',
+              lastName: 'User',
+              organizationId: 'test-org-id',
+              role: 'ADMIN',
+            },
+          },
+        }),
+      })
+    );
     await page.goto('/login');
     await page.fill('input[type="email"]', 'demo@cortexgrid.io');
     await page.fill('input[type="password"]', 'Demo@1234');

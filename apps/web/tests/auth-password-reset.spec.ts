@@ -1,5 +1,7 @@
 import { test, expect } from '@playwright/test';
 
+test.use({ storageState: undefined });
+
 test.describe('Forgot Password', () => {
   test('should navigate to forgot-password from login', async ({ page }) => {
     await page.goto('/login');
@@ -29,10 +31,16 @@ test.describe('Forgot Password', () => {
   });
 
   test('should show success state after submitting valid email', async ({ page }) => {
+    await page.route(/\/api\/v1\/auth\/forgot-password/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: 'application/json',
+        body: JSON.stringify({ success: true, data: null }),
+      })
+    );
     await page.goto('/forgot-password');
     await page.fill('input[type="email"]', 'demo@cortexgrid.io');
     await page.click('button[type="submit"]');
-    // Should show "check your email" confirmation or error (either is acceptable)
     await expect(
       page.locator('text=/check your email|sent|something went wrong|error/i').first(),
     ).toBeVisible({ timeout: 10000 });
