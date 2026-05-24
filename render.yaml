@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: free
     region: singapore
-    buildCommand: NODE_ENV=development pnpm install && pnpm --filter @cortexgrid/api db:generate && pnpm --filter @cortexgrid/api build
+    buildCommand: pnpm install --prod=false && pnpm --filter @cortexgrid/api db:generate && pnpm --filter @cortexgrid/api build
     startCommand: cd apps/api && node dist/main-worker.js
     healthCheckPath: /health
     envVars:
