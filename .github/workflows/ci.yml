@@ -262,11 +262,14 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @cortexgrid/api db:generate
 
+      - name: Set DIRECT_URL fallback
+        run: echo "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL}" >> $GITHUB_ENV
+
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
 
       - name: Run integration tests with coverage
-        run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover --forceExit
+        run: pnpm test:integration -- --coverage --coverageReporters=text --coverageReporters=lcov --coverageReporters=clover --forceExit --runInBand
 
       - name: Upload integration coverage report
         uses: actions/upload-artifact@v4
@@ -324,6 +327,9 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
+
+      - name: Set DIRECT_URL fallback
+        run: echo "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL}" >> $GITHUB_ENV
 
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
@@ -421,6 +427,9 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
+
+      - name: Set DIRECT_URL fallback
+        run: echo "DIRECT_URL=${DIRECT_URL:-$DATABASE_URL}" >> $GITHUB_ENV
 
       - name: Run database migrations
         run: cd apps/api && npx prisma migrate deploy
