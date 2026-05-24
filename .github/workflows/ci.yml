@@ -285,6 +285,16 @@ jobs:
     needs: setup
     runs-on: ubuntu-latest
 
+    services:
+      mosquitto:
+        image: eclipse-mosquitto:2
+        ports:
+          - 1883:1883
+        options: >-
+          --health-cmd "exit 0"
+          --health-interval 5s
+          --health-retries 3
+
     env:
       DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
       DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
@@ -296,6 +306,12 @@ jobs:
       MQTT_BROKER_URL: mqtt://localhost:1883
 
     steps:
+      - name: Configure Mosquitto
+        run: |
+          docker exec $(docker ps -q --filter ancestor=eclipse-mosquitto:2) \
+            sh -c 'printf "listener 1883\nallow_anonymous true\n" > /mosquitto/config/mosquitto.conf && mosquitto_ctrl reload' || true
+          sleep 1
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
