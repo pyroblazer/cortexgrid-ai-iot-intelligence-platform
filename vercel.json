@@ -1,15 +1,6 @@
 {
-  "buildCommand": "pnpm install && node scripts/build-api-vercel.mjs && pnpm --filter @cortexgrid/web build",
+  "buildCommand": "pnpm install && pnpm --filter @cortexgrid/web build",
   "outputDirectory": "apps/web/.next",
   "framework": "nextjs",
-  "installCommand": "pnpm install",
-  "functions": {
-    "api/**/*.js": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 10
-    }
-  },
-  "rewrites": [
-    { "source": "/api/v1/(.*)", "destination": "/api/index" }
-  ]
+  "installCommand": "pnpm install"
 }

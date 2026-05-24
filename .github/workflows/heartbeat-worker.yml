@@ -1,4 +1,4 @@
-name: Keep CortexGrid Worker Alive
+name: Keep CortexGrid API Alive
 
 on:
   schedule:
@@ -9,4 +9,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Ping worker health endpoint
-        run: curl -sf https://cortexgrid-worker.onrender.com/health || true
+        run: curl -sf https://cortexgrid-api.onrender.com/health || true

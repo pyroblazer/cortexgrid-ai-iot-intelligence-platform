@@ -1,0 +1,25 @@
+{
+  "cookies": [
+    {
+      "name": "cortexgrid_access_token",
+      "value": "test-access-token",
+      "domain": "localhost",
+      "path": "/",
+      "expires": -1,
+      "httpOnly": false,
+      "secure": false,
+      "sameSite": "Lax"
+    }
+  ],
+  "origins": [
+    {
+      "origin": "http://localhost:3000",
+      "localStorage": [
+        {
+          "name": "cortexgrid-auth",
+          "value": "{\"state\":{\"user\":{\"id\":\"test-user-id\",\"email\":\"demo@cortexgrid.io\",\"firstName\":\"Demo\",\"lastName\":\"User\",\"organizationId\":\"test-org-id\",\"role\":\"ADMIN\"},\"accessToken\":\"test-access-token\",\"refreshToken\":\"test-refresh-token\",\"isAuthenticated\":true},\"version\":0}"
+        }
+      ]
+    }
+  ]
+}

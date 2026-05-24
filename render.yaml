@@ -1,31 +1,25 @@
 services:
   - type: web
-    name: cortexgrid-worker
+    name: cortexgrid-api
     runtime: node
-    buildCommand: pnpm install && pnpm --filter @cortexgrid/api db:generate && pnpm --filter @cortexgrid/api build
-    startCommand: cd apps/api && WORKER_MODE=true node dist/main-worker.js
     plan: free
+    region: singapore
+    buildCommand: pnpm install && pnpm --filter @cortexgrid/api db:generate && pnpm --filter @cortexgrid/api build
+    startCommand: cd apps/api && node dist/main-worker.js
+    healthCheckPath: /health
     envVars:
       - key: NODE_ENV
         value: production
-      - key: WORKER_MODE
-        value: "true"
       - key: PORT
         value: "3001"
-      # Database (Supabase)
+      # Database (Neon PostgreSQL)
       - key: DATABASE_URL
         sync: false
       - key: DIRECT_URL
         sync: false
       # Redis (Upstash)
-      - key: REDIS_HOST
+      - key: REDIS_URL
         sync: false
-      - key: REDIS_PORT
-        sync: false
-      - key: REDIS_PASSWORD
-        sync: false
-      - key: REDIS_TLS
-        value: "true"
       # MQTT (HiveMQ Cloud)
       - key: MQTT_BROKER_URL
         sync: false
@@ -42,15 +36,18 @@ services:
         value: "15m"
       - key: JWT_REFRESH_EXPIRY
         value: "7d"
-      # CORS
+      # CORS (set to Vercel URL after deployment)
       - key: CORS_ORIGIN
         sync: false
-      # AI
+      # Frontend URL (for Stripe redirects and password reset emails)
+      - key: FRONTEND_URL
+        sync: false
+      # AI (Groq Cloud)
       - key: GROQ_API_KEY
         sync: false
       - key: GROQ_MODEL
         value: "llama-3.3-70b-versatile"
-      # Stripe
+      # Stripe (optional — billing disabled if empty)
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
@@ -59,6 +56,14 @@ services:
         sync: false
       - key: STRIPE_ENTERPRISE_PRICE_ID
         sync: false
-      # Frontend URL for Stripe redirects
-      - key: FRONTEND_URL
+      # Email (optional — emails skipped if SMTP_HOST is empty)
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
         sync: false
