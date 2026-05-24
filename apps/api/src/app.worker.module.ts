@@ -13,6 +13,8 @@ import { ThrottlerModule } from '@nestjs/throttler';
 import { PrismaModule } from './common/prisma/prisma.module';
 import { RedisModule } from './common/redis/redis.module';
 import { QueueWorkerModule } from './common/queue/queue-worker.module';
+import { UsageModule } from './common/usage/usage.module';
+import { PdfModule } from './common/pdf/pdf.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { OrganizationModule } from './modules/organization/organization.module';
 import { DeviceModule } from './modules/device/device.module';
@@ -40,6 +42,8 @@ import { AuditModule } from './modules/audit/audit.module';
     PrismaModule,
     RedisModule,
     QueueWorkerModule,
+    UsageModule,
+    PdfModule,
     // Feature modules (full, with MQTT + WebSocket + BullMQ)
     AuthModule,
     OrganizationModule,
