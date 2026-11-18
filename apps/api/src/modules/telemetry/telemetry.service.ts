@@ -27,6 +27,7 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { RedisService } from '../../common/redis/redis.service';
 import { UsageService } from '../../common/usage/usage.service';
 import { IngestTelemetryDto, QueryTelemetryDto } from './dto/ingest-telemetry.dto';
+import { buildTelemetryCsv, MAX_EXPORT_ROWS } from './telemetry-csv';
 
 @Injectable()
 export class TelemetryService {
@@ -189,6 +190,37 @@ export class TelemetryService {
    * data points, you get "buckets" like: "from 2:00-2:05 PM, the average
    * temperature was 72.3, min was 70.1, max was 74.5".
    */
+  /**
+   * Export a device's telemetry in a time range as CSV (oldest first, capped at
+   * MAX_EXPORT_ROWS). Org-scoped like every other query.
+   */
+  async exportCsv(
+    organizationId: string,
+    deviceId: string,
+    queryDto: QueryTelemetryDto,
+  ): Promise<string> {
+    const device = await this.prisma.device.findFirst({
+      where: { id: deviceId, organizationId, isActive: true },
+    });
+    if (!device) {
+      throw new NotFoundException('Device not found in this organization');
+    }
+
+    const startTime = queryDto.startTime
+      ? new Date(queryDto.startTime)
+      : new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const endTime = queryDto.endTime ? new Date(queryDto.endTime) : new Date();
+
+    const rows = await this.prisma.telemetry.findMany({
+      where: { deviceId, organizationId, timestamp: { gte: startTime, lte: endTime } },
+      orderBy: { timestamp: 'asc' },
+      take: MAX_EXPORT_ROWS,
+      select: { timestamp: true, metrics: true },
+    });
+
+    return buildTelemetryCsv(rows as any);
+  }
+
   async query(
     organizationId: string,
     deviceId: string,

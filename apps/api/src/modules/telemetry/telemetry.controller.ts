@@ -5,8 +5,10 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import {
   ApiTags,
   ApiOperation,
@@ -36,6 +38,25 @@ export class TelemetryController {
     @Body() ingestDto: IngestTelemetryDto,
   ) {
     return this.telemetryService.ingest(organizationId, ingestDto);
+  }
+
+  @Get(':deviceId/export')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ summary: 'Export a device\'s telemetry as CSV' })
+  @ApiParam({ name: 'deviceId', description: 'Device ID' })
+  @ApiQuery({ name: 'startTime', required: false })
+  @ApiQuery({ name: 'endTime', required: false })
+  async exportCsv(
+    @CurrentUser('organizationId') organizationId: string,
+    @Param('deviceId') deviceId: string,
+    @Query() queryDto: QueryTelemetryDto,
+    @Res() res: Response,
+  ) {
+    const csv = await this.telemetryService.exportCsv(organizationId, deviceId, queryDto);
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="telemetry-${deviceId.replace(/[^A-Za-z0-9_-]/g, '')}.csv"`);
+    res.send(csv);
   }
 
   @Get(':deviceId')
