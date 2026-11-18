@@ -9,7 +9,7 @@
  * 1. TelemetryService stores data in the database, then announces it on Redis
  * 2. This gateway listens to Redis announcements (like a radio receiver)
  * 3. When it hears something, it pushes the data through WebSocket to browsers
- * 4. Each browser is in a "room" for their organization so they only see their data
+ * 4. Each socket is authenticated (JWT) and joins only its own organization's room
  *
  * WHY Redis pub/sub? The API server and WebSocket server might run on different
  * processes. Redis acts as the telephone line between them.
@@ -26,10 +26,12 @@ import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { RedisService } from '../../common/redis/redis.service';
+import { PrismaService } from '../../common/prisma/prisma.service';
+import { JwtService } from '@nestjs/jwt';
 
 @WebSocketGateway({
   cors: {
-    origin: '*', // Overridden dynamically in handleConnection from ConfigService
+    origin: (process.env.CORS_ORIGIN || 'http://localhost:3000').split(',').map((o) => o.trim()),
     credentials: true,
   },
   namespace: '/telemetry',
@@ -45,7 +47,12 @@ export class TelemetryGateway
   constructor(
     private readonly redisService: RedisService,
     private readonly configService: ConfigService,
-  ) {}
+    private readonly prisma: PrismaService,
+  ) {
+    this.jwtService = new JwtService({});
+  }
+
+  private readonly jwtService: JwtService;
 
   afterInit() {
     this.logger.log('Telemetry WebSocket Gateway initialized');
@@ -63,15 +70,41 @@ export class TelemetryGateway
     });
   }
 
-  handleConnection(client: Socket) {
-    this.logger.log(`Client connected: ${client.id}`);
+  /**
+   * Authenticates every socket with the same JWT used for the REST API.
+   * The organization is taken from the verified token (never from the client)
+   * and membership is re-checked against the database.
+   */
+  async handleConnection(client: Socket) {
+    try {
+      const token =
+        (client.handshake.auth?.token as string | undefined) ||
+        client.handshake.headers.authorization?.replace(/^Bearer\s+/i, '');
+      if (!token) throw new Error('missing token');
 
-    // When a browser connects, put it in an organization-specific "room"
-    // so we only send it data that belongs to its organization
-    const orgId = client.handshake.query.organizationId as string;
-    if (orgId) {
-      client.join(`org:${orgId}`);
-      this.logger.debug(`Client ${client.id} joined org room: ${orgId}`);
+      const payload = await this.jwtService.verifyAsync<{ sub: string; organizationId: string }>(
+        token,
+        { secret: this.configService.get<string>('JWT_ACCESS_SECRET') },
+      );
+
+      const membership = await this.prisma.membership.findFirst({
+        where: {
+          userId: payload.sub,
+          organizationId: payload.organizationId,
+          isActive: true,
+          user: { isActive: true },
+        },
+        select: { id: true },
+      });
+      if (!membership) throw new Error('no active membership');
+
+      client.data.organizationId = payload.organizationId;
+      client.join(`org:${payload.organizationId}`);
+      this.logger.debug(`Client ${client.id} joined org room: ${payload.organizationId}`);
+    } catch (error) {
+      this.logger.warn(`Rejected unauthenticated socket ${client.id}: ${(error as Error).message}`);
+      client.emit('error', { message: 'Unauthorized' });
+      client.disconnect(true);
     }
   }
 
@@ -84,7 +117,18 @@ export class TelemetryGateway
    * Called from the frontend when viewing a single device detail page.
    */
   @SubscribeMessage('subscribe:device')
-  handleSubscribeDevice(client: Socket, deviceId: string) {
+  async handleSubscribeDevice(client: Socket, deviceId: string) {
+    const organizationId = client.data.organizationId as string | undefined;
+    if (!organizationId || typeof deviceId !== 'string') return;
+    // Only allow subscribing to devices that belong to the caller's organization
+    const device = await this.prisma.device.findFirst({
+      where: { id: deviceId, organizationId },
+      select: { id: true },
+    });
+    if (!device) {
+      this.logger.warn(`Client ${client.id} denied subscription to device ${deviceId}`);
+      return;
+    }
     client.join(`device:${deviceId}`);
     this.logger.debug(`Client ${client.id} subscribed to device: ${deviceId}`);
   }

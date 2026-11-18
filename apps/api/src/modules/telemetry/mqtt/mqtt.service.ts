@@ -214,18 +214,21 @@ export class MqttService implements OnModuleInit, OnModuleDestroy {
         organizationId = device.organizationId;
       }
 
-      // If the topic didn't include the org ID, look it up from the device record.
-      if (!organizationId) {
-        const device = await this.prisma.device.findUnique({
-          where: { id: deviceId },
-          select: { organizationId: true },
-        });
-        if (!device) {
-          this.logger.warn(`Device not found: ${deviceId}`);
-          return;
-        }
-        organizationId = device.organizationId;
+      // Never trust the organization claimed in the topic: always resolve it from the
+      // device record and reject messages whose topic org does not match.
+      const ownerDevice = await this.prisma.device.findUnique({
+        where: { id: deviceId },
+        select: { organizationId: true },
+      });
+      if (!ownerDevice) {
+        this.logger.warn(`Device not found: ${deviceId}`);
+        return;
       }
+      if (organizationId && organizationId !== ownerDevice.organizationId) {
+        this.logger.warn(`Org mismatch for device ${deviceId} on topic ${topic}; message dropped`);
+        return;
+      }
+      organizationId = ownerDevice.organizationId;
 
       // ── Handle status messages (device online/offline) ──
       if (topic.endsWith('/status')) {
