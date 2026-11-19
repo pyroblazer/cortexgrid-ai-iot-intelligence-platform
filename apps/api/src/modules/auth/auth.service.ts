@@ -33,7 +33,7 @@ import {
   BadRequestException,
   Logger,
 } from '@nestjs/common';
-import { JwtService } from '@nestjs/jwt';
+import { JwtService, JwtSignOptions } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
@@ -665,7 +665,7 @@ export class AuthService {
         },
         {
           secret: this.configService.get<string>('JWT_ACCESS_SECRET'),
-          expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m'),
+          expiresIn: this.configService.get<string>('JWT_ACCESS_EXPIRY', '15m') as JwtSignOptions['expiresIn'],
         },
       ),
       this.jwtService.signAsync(
@@ -677,7 +677,7 @@ export class AuthService {
         {
           // Uses a DIFFERENT secret from access tokens for defense in depth.
           secret: this.configService.get<string>('JWT_REFRESH_SECRET'),
-          expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d'),
+          expiresIn: this.configService.get<string>('JWT_REFRESH_EXPIRY', '7d') as JwtSignOptions['expiresIn'],
         },
       ),
     ]);
