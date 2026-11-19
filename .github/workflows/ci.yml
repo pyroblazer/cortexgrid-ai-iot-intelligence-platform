@@ -18,7 +18,7 @@ jobs:
   # ─── Setup ───────────────────────────────────────────────────────────────
   setup:
     name: Setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -72,7 +72,7 @@ jobs:
   lint:
     name: Lint
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -107,7 +107,7 @@ jobs:
   type-check:
     name: Type Check
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -145,7 +145,7 @@ jobs:
   unit-tests:
     name: Unit Tests
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -195,9 +195,22 @@ jobs:
   integration-tests:
     name: Integration Tests
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
       redis:
         image: redis:7-alpine
         ports:
@@ -218,8 +231,8 @@ jobs:
           --health-retries 3
 
     env:
-      DATABASE_URL: ${{ secrets.NEON_TEST_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_TEST_DIRECT_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
       REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
@@ -283,9 +296,31 @@ jobs:
   api-tests:
     name: API Tests (Newman)
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
       mosquitto:
         image: eclipse-mosquitto:2
         ports:
@@ -296,9 +331,9 @@ jobs:
           --health-retries 3
 
     env:
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -399,12 +434,35 @@ jobs:
   e2e-setup:
     name: E2E Setup
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
 
     env:
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -457,13 +515,36 @@ jobs:
   e2e-shard-1:
     name: E2E Shard 1/3
     needs: [setup, e2e-setup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     env:
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -502,6 +583,12 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
 
       - name: Start API server
         run: |
@@ -569,13 +656,36 @@ jobs:
   e2e-shard-2:
     name: E2E Shard 2/3
     needs: [setup, e2e-setup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     env:
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -614,6 +724,12 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
 
       - name: Start API server
         run: |
@@ -681,13 +797,36 @@ jobs:
   e2e-shard-3:
     name: E2E Shard 3/3
     needs: [setup, e2e-setup]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 15
 
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: cortexgrid
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
     env:
-      DATABASE_URL: ${{ secrets.NEON_DATABASE_URL }}
-      DIRECT_URL: ${{ secrets.NEON_DIRECT_URL }}
-      REDIS_URL: ${{ secrets.UPSTASH_REDIS_URL }}
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      DIRECT_URL: postgresql://postgres:postgres@localhost:5432/cortexgrid
+      REDIS_URL: redis://localhost:6379
       JWT_ACCESS_SECRET: test-access-secret
       JWT_REFRESH_SECRET: test-refresh-secret
       CORS_ORIGIN: "*"
@@ -726,6 +865,12 @@ jobs:
 
       - name: Build API
         run: pnpm --filter @cortexgrid/api build
+
+      - name: Run database migrations
+        run: cd apps/api && npx prisma migrate deploy
+
+      - name: Seed database
+        run: cd apps/api && npx prisma db seed
 
       - name: Start API server
         run: |
@@ -794,7 +939,7 @@ jobs:
   build:
     name: Build & Push Images
     needs: setup
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: read
       packages: write
@@ -880,7 +1025,7 @@ jobs:
   coverage:
     name: Coverage Check
     needs: [unit-tests, integration-tests]
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - name: Download unit coverage
         uses: actions/download-artifact@v4
